@@ -8,7 +8,6 @@ All computations in the theory are carried out using only discrete integer arith
 
 From the same Cl(8) algebraic structure, quantum nonlocality is formally proved (UNSAT proof of the KS theorem, CHSH violation reaching the Tsirelson bound). On this quantum computation foundation, the Cl(8) geometric product algebraically unifies fault-tolerant quantum computation (FTQC), Gaussian processes (GP), and neural networks (NN), establishing the mathematical foundations for next-generation quantum machine learning. A formal proof that GoldenGate Quantum Deep GP is BQP-complete yields O(n) exact GP and the isomorphism Quantum Deep GP ≡ TQC (layers = circuit depth).
 
-[ Quantum Deep GP ≡ TQC (GoldenGate BQP-completeness theorem) ]
 > "From the integer structure of 8 bits, the entire universe and the computational foundation of the intelligence that comprehends it are derived."
 
 > **Project Status:** Released (v1.0)

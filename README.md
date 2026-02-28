@@ -14,8 +14,9 @@ From the same Cl(8) algebraic structure, quantum nonlocality is formally proved 
 > **Initiated:** 2025
 > **License:** CC-BY 4.0
 
-[![DOI](https://zenodo.org/badge/21312134.svg)](https://doi.org/10.5281/zenodo.18108546)
+https://doi.org/10.5281/zenodo.18816529
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18816529.svg)](https://doi.org/10.5281/zenodo.18816529)
 
 ---
 © 2025–2026 Ken Okabe. This is a living document hosted on GitHub.

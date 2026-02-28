@@ -1,0 +1,24 @@
+{"plugins": [],
+ "options": {},
+ "name": "CL8E8TQC._06_E8Branching._04_RouteD_Matter",
+ "isModule": false,
+ "importArts":
+ {"CL8E8TQC._06_E8Branching._00_Overview":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_06_E8Branching/_00_Overview.olean"],
+  "CL8E8TQC._03_E8Dirac._04_PositiveRoots":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_03_E8Dirac/_04_PositiveRoots.olean"],
+  "CL8E8TQC._03_E8Dirac._03_Parthasarathy":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_03_E8Dirac/_03_Parthasarathy.olean"],
+  "CL8E8TQC._03_E8Dirac._02_DimensionFormula":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_03_E8Dirac/_02_DimensionFormula.olean"],
+  "CL8E8TQC._03_E8Dirac._01_A4Embedding":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_03_E8Dirac/_01_A4Embedding.olean"],
+  "CL8E8TQC._03_E8Dirac._00_LieAlgebra":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_03_E8Dirac/_00_LieAlgebra.olean"],
+  "CL8E8TQC._01_TQC._03_QuantumState":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_01_TQC/_03_QuantumState.olean"],
+  "CL8E8TQC._01_TQC._02_PinSpin":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_01_TQC/_02_PinSpin.olean"],
+  "CL8E8TQC._01_TQC._01_Cl8E8H84":
+  ["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_01_TQC/_01_Cl8E8H84.olean"]},
+ "dynlibs": []}

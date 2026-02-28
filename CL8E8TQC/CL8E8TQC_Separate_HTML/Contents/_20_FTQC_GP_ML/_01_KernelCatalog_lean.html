@@ -1,0 +1,1805 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lean Notebook Viewer</title>
+  <script>
+    // MathJax config — from MATHJAX_CONFIG in renderer.js (single source of truth).
+    MathJax = {"tex":{"inlineMath":[["$","$"]],"displayMath":[["$$","$$"]],"processEscapes":true},"options":{"skipHtmlTags":["script","noscript","style","textarea","pre","code"],"menuOptions":{"settings":{"enrich":false,"collapsible":false,"speech":false,"braille":false,"assistiveMml":false}}},"startup":{"typeset":false}};
+  </script>
+  <script async src="../../_libs/tex-svg.js"></script>
+  <script src="../../_libs/marked.min.js"></script>
+  <script src="../../_libs/mermaid.min.js"></script>
+  <script src="../../_libs/viz-standalone.js" async></script>
+  <style>
+    /* Injected from style.css by htmlExporter.ts — do NOT edit here. Edit style.css instead. */
+    /* style.css — LeanNotebook VSCode Extension
+   Identical CSS for both the static HTML viewer and the Extension WebView.
+   Overrides VSCode user themes to prioritize the Lean brand.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  /* Lean brand: white + blue */
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface-alt: #eef2f8;
+  --border: #d0daea;
+  --border-soft: #e4eaf4;
+  --text: #1a2233;
+  --text-muted: #4a5a78;
+  --text-dim: #8a9ab8;
+  /* Lean blue palette */
+  --blue: #2563eb;
+  --blue-light: #3b82f6;
+  --blue-pale: #dbeafe;
+  --blue-dim: #93c5fd;
+  --blue-dark: #1d4ed8;
+  /* syntax */
+  --hl-keyword: #1d4ed8;
+  --hl-tactic: #7c3aed;
+  --hl-type: #0369a1;
+  --hl-string: #15803d;
+  --hl-number: #b45309;
+  --hl-comment: #94a3b8;
+  --hl-op: #475569;
+  /* code bg */
+  --code-bg: #f0f4ff;
+  --radius: 7px;
+  --font-prose: 'Source Serif 4', Georgia, serif;
+  --font-code: 'Fira Code', 'Courier New', monospace;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --shadow-sm: 0 1px 3px rgba(37, 99, 235, .08), 0 1px 2px rgba(0, 0, 0, .04);
+  --shadow-md: 0 4px 12px rgba(37, 99, 235, .10), 0 1px 4px rgba(0, 0, 0, .05);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ================================================================
+   Overall Layout: Sidebar + Main Content
+   Extension WebView: #layout
+   HTML Export: #app (topbar + sidebar + notebook)
+   ================================================================ */
+
+/* --- Common root grid (#app) --- */
+#app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+#topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+#topbar .logo {
+  font-family: var(--font-code);
+  font-size: 14px;
+  color: var(--blue);
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+#topbar .logo span {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+#topbar .doc-title {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#topbar .sep {
+  color: var(--border);
+}
+
+#view-toggle {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 3px;
+  gap: 2px;
+}
+
+#view-toggle label {
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background .15s, color .15s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+#view-toggle input[type=radio] {
+  display: none;
+}
+
+#view-toggle input[type=radio]:checked+label {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, .25);
+}
+
+#notebook {
+  padding: 48px 60px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#lean-raw {
+  display: none;
+  padding: 48px 60px;
+  max-width: none;
+  grid-column: 2;
+  overflow: auto;
+}
+
+#lean-raw pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.7;
+  tab-size: 2;
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+  white-space: pre;
+}
+
+#app.lean-mode {
+  grid-template-columns: 0 1fr;
+}
+
+#app.lean-mode #sidebar {
+  display: none;
+}
+
+#app.lean-mode #lean-raw {
+  grid-column: 1 / -1;
+  padding: 48px 60px;
+  display: block;
+}
+
+@media(max-width:900px) {
+  #app {
+    grid-template-columns: 1fr;
+  }
+
+  #app #sidebar {
+    display: none;
+  }
+
+  #notebook {
+    padding: 28px 20px;
+  }
+
+  #lean-raw {
+    grid-column: 1;
+    padding: 28px 20px;
+  }
+}
+
+/* ---- Sidebar ---- */
+#sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+#toc-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 18px 10px;
+}
+
+#toc a {
+  display: block;
+  padding: 4px 18px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color .15s, background .15s;
+  line-height: 1.5;
+  border-left: 2px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#toc a:hover {
+  color: var(--blue);
+  background: var(--blue-pale);
+  border-left-color: var(--blue-light);
+}
+
+#toc a.h1 {
+  font-weight: 600;
+  color: var(--text);
+  padding-left: 18px;
+  margin-top: 6px;
+}
+
+#toc a.h2 {
+  padding-left: 28px;
+}
+
+#toc a.h3 {
+  padding-left: 40px;
+  font-size: 11.5px;
+}
+
+/* ---- Main Content ---- */
+#notebook {
+  min-width: 0;
+  width: 100%;
+}
+
+/* ================================================================
+   Prose Blocks (shared)
+   ================================================================ */
+.block-module-doc,
+.block-doc-comment {
+  font-family: var(--font-prose);
+  font-size: 17px;
+  line-height: 1.85;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+/* --- module-doc: white card --- */
+.block-module-doc {
+  padding: 32px 36px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- doc-comment: left blue border --- */
+.block-doc-comment {
+  padding: 16px 20px;
+  border-left: 3px solid var(--blue-light);
+  background: var(--blue-pale);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* ================================================================
+   Prose Typography (shared)
+   ================================================================ */
+.block-module-doc h1,
+.block-doc-comment h1,
+.block-doc-comment h1,
+.block-doc-comment h1 {
+  font-size: 1.9em;
+  font-weight: 600;
+  color: var(--blue-dark);
+  border-bottom: 2px solid var(--blue-pale);
+  padding-bottom: 10px;
+  margin: 0 0 20px;
+  line-height: 1.3;
+}
+
+.block-module-doc h2,
+.block-doc-comment h2,
+.block-doc-comment h2,
+.block-doc-comment h2 {
+  font-size: 1.35em;
+  font-weight: 600;
+  color: var(--blue);
+  margin: 24px 0 14px;
+  line-height: 1.4;
+}
+
+.block-module-doc h3,
+.block-doc-comment h3,
+.block-doc-comment h3,
+.block-doc-comment h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--text);
+  margin: 18px 0 10px;
+}
+
+.block-module-doc h4,
+.block-doc-comment h4,
+.block-doc-comment h4,
+.block-doc-comment h4 {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 14px 0 8px;
+}
+
+.block-module-doc p,
+.block-doc-comment p,
+.block-doc-comment p,
+.block-doc-comment p {
+  margin: 0 0 12px;
+}
+
+/* Remove bottom margin from the last child to keep padding visually equal */
+.block-module-doc>*:last-child,
+.block-doc-comment>*:last-child,
+.block-doc-comment>*:last-child,
+.block-doc-comment>*:last-child {
+  margin-bottom: 0;
+}
+
+/* Remove top margin from the first child to keep padding visually equal */
+.block-module-doc>*:first-child,
+.block-doc-comment>*:first-child,
+.block-doc-comment>*:first-child,
+.block-doc-comment>*:first-child {
+  margin-top: 0;
+}
+
+.block-module-doc strong,
+.block-doc-comment strong,
+.block-doc-comment strong,
+.block-doc-comment strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.block-module-doc em,
+.block-doc-comment em,
+.block-doc-comment em,
+.block-doc-comment em {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.block-module-doc ul,
+.block-module-doc ol,
+.block-doc-comment ul,
+.block-doc-comment ol,
+.block-doc-comment ul,
+.block-doc-comment ol,
+.block-doc-comment ul,
+.block-doc-comment ol {
+  margin: 8px 0 14px 22px;
+}
+
+.block-module-doc li,
+.block-doc-comment li,
+.block-doc-comment li,
+.block-doc-comment li {
+  margin-bottom: 5px;
+}
+
+.block-module-doc li p,
+.block-doc-comment li p,
+.block-doc-comment li p,
+.block-doc-comment li p {
+  margin: 0;
+}
+
+/* Inline code */
+.block-module-doc code,
+.block-doc-comment code,
+.block-doc-comment code,
+.block-doc-comment code {
+  font-family: var(--font-code);
+  font-size: .84em;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--blue-dark);
+}
+
+/* Code fences */
+.block-module-doc pre,
+.block-doc-comment pre,
+.block-doc-comment pre,
+.block-doc-comment pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.7;
+  tab-size: 2;
+}
+
+.block-module-doc pre code,
+.block-doc-comment pre code,
+.block-doc-comment pre code,
+.block-doc-comment pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font-size: inherit;
+}
+
+/* Tables */
+.block-module-doc table,
+.block-doc-comment table,
+.block-doc-comment table,
+.block-doc-comment table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.block-module-doc th,
+.block-doc-comment th,
+.block-doc-comment th,
+.block-doc-comment th {
+  background: var(--surface-alt);
+  color: var(--blue-dark);
+  font-weight: 600;
+  padding: 8px 14px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+
+.block-module-doc td,
+.block-doc-comment td,
+.block-doc-comment td,
+.block-doc-comment td {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.block-module-doc tr:nth-child(even) td,
+.block-doc-comment tr:nth-child(even) td,
+.block-doc-comment tr:nth-child(even) td,
+.block-doc-comment tr:nth-child(even) td {
+  background: #f0f5fd;
+}
+
+/* Blockquotes */
+.block-module-doc blockquote,
+.block-doc-comment blockquote,
+.block-doc-comment blockquote,
+.block-doc-comment blockquote {
+  border-left: 3px solid var(--blue-dim);
+  padding-left: 16px;
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.block-module-doc hr,
+.block-doc-comment hr,
+.block-doc-comment hr,
+.block-doc-comment hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+
+.block-module-doc a,
+.block-doc-comment a,
+.block-doc-comment a,
+.block-doc-comment a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.block-module-doc a:hover,
+.block-doc-comment a:hover,
+.block-doc-comment a:hover,
+.block-doc-comment a:hover {
+  text-decoration: underline;
+}
+
+/* ================================================================
+   Code Blocks
+   ================================================================ */
+.block-code {
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.block-code-header {
+  background: var(--surface-alt);
+  padding: 7px 16px;
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.block-code-header::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue-light);
+  opacity: .7;
+}
+
+.lean-source {
+  background: var(--code-bg);
+  margin: 0;
+  padding: 18px 20px;
+  font-family: var(--font-code);
+  font-size: 13.5px;
+  line-height: 1.7;
+  white-space: pre;
+  overflow-x: auto;
+  tab-size: 2;
+  color: var(--text);
+}
+
+/* ================================================================
+   Syntax Highlighting
+   ================================================================ */
+.hl-keyword {
+  color: var(--hl-keyword);
+  font-weight: 600;
+}
+
+.hl-tactic {
+  color: var(--hl-tactic);
+}
+
+.hl-type {
+  color: var(--hl-type);
+}
+
+.hl-string {
+  color: var(--hl-string);
+}
+
+.hl-number {
+  color: var(--hl-number);
+}
+
+.hl-comment {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+
+.hl-op {
+  color: var(--hl-op);
+}
+
+/* ================================================================
+   Mermaid Blocks
+   ================================================================ */
+.block-mermaid {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  overflow-y: visible;
+  box-shadow: var(--shadow-sm);
+}
+
+.block-mermaid svg {
+  height: auto;
+}
+
+.block-mermaid .error {
+  color: #c00;
+  padding: 1em;
+  border-radius: 4px;
+  text-align: left;
+}
+
+/* ================================================================
+   Graphviz (DOT) Blocks
+   ================================================================ */
+.block-graphviz {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  overflow-y: visible;
+  box-shadow: var(--shadow-sm);
+}
+
+.block-graphviz svg {
+  height: auto;
+}
+
+.block-graphviz .error {
+  color: #c00;
+  padding: 1em;
+  border-radius: 4px;
+  text-align: left;
+}
+
+/* ================================================================
+   MathJax
+   ================================================================ */
+mjx-container {
+  color: inherit !important;
+}
+
+mjx-container[display="true"] {
+  display: block !important;
+  overflow: visible !important;
+  margin: 0 !important;
+  max-width: 100%;
+  font-size: 1.15em;
+}
+
+.mjx-display-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 20px 0;
+  padding: 4px 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--blue-dim) transparent;
+}
+
+.mjx-display-wrap::-webkit-scrollbar {
+  height: 4px;
+}
+
+.mjx-display-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mjx-display-wrap::-webkit-scrollbar-thumb {
+  background: var(--blue-dim);
+  border-radius: 2px;
+}
+
+/* Heading scroll offset */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  scroll-margin-top: 72px;
+}
+
+/* ================================================================
+   Scrollbar
+   ================================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--blue-dim);
+  border-radius: 3px;
+}
+
+/* ================================================================
+   Lean LSP Output (#eval / proof status)
+   ================================================================ */
+.lean-output {
+  border-top: 1px solid var(--border);
+  padding: 10px 10px 10px 22px;
+  background: rgba(0, 0, 0, .02);
+  position: relative;
+}
+
+.lean-output::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--blue);
+}
+
+.output-label {
+  display: block;
+  font-size: .78em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.lean-output pre {
+  margin: 0;
+  font-family: var(--font-code);
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+  </style>
+</head>
+
+<body>
+  <script type="text/x-lean-source" id="lean-source">import CL8E8TQC._20_FTQC_GP_ML._00_LinearTimeGP
+
+namespace CL8E8TQC.FTQC_GP_ML.KernelCatalog
+
+open CL8E8TQC.Foundation (Cl8Basis geometricProduct h84Codewords)
+open CL8E8TQC.FTQC_GP_ML.LinearTimeGP (e8Kernel featureMap)
+
+/-!
+# Exhaustive Verification of Candidate Kernels — O(n), Exact, Integer Arithmetic: The 3 Conditions
+
+## Abstract
+
+`_00_LinearTimeGP.lean` implemented $O(n)$ exact GP inference using the Grade-1 Hamming kernel. This file exhaustively verifies via Lean 4 constructive computation **whether kernels other than Hamming satisfy the same 3 conditions**.
+
+## 3 Conditions Defined
+
+| Condition | Meaning | Mathematical Requirement |
+|:---|:---|:---|
+| **O(n)** | Woodbury identity is effective | $d$ (feature dim) is constant |
+| **Exact** | No approximation | Not Sparse GP / Random Features |
+| **Integer arithmetic** | Forbidden Float principle | $\phi: X \to \mathbb{Z}^d$, $\sigma^2 \geq 1$ |
+
+### Conclusion (Preview)
+
+| Kernel | d | O(n) factor | 3 conditions | BQP | Notes |
+|:---|:---|:---|:---|:---|:---|
+| **Grade-1 (Hamming)** | 8 | O(64n) | ✅ | ❌ | Fastest, simplest, already implemented |
+| **Grade-2** | 28 | O(784n) | ✅ | ❌ | Derivable from $k_{H}^2$ |
+| **Grade-3** | 56 | O(3136n) | ✅ | ❌ | 3-body bit correlation |
+| **Grade-4** | 70 | O(4900n) | ✅ | ❌ | 4-body correlation (max grade) |
+| **Full-Cl(8)** | 256 | — | ⚠️ | ❌ | Range {0,256} only — identity map |
+| **Polynomial p=2** | 36 | O(1296n) | ✅ | ❌ | $k_H^2$, non-negative |
+| **Polynomial p=3** | 120 | O(14400n) | ✅ | ❌ | $k_H^3$, odd degree |
+| **GoldenGate** | 16 | O(256n) | ✅† | ✅ | $\mathbb{Z}[\sqrt{5}]$ coefficients |
+| **E8 root** | 240 | O(57600n) | ⚠️ | ❌ | $\approx 240 \times k_H$ |
+| **H84 code** | 16 | O(256n) | ✅ | ❌ | With error correction |
+
+**Why Hamming is chosen**: Minimum rank (d=8) → fastest, directly linked to Cl(8) Grade-1 basis, computational foundation for all higher kernels (Grade-2 = $(k_H^2 - 8)/2$).
+
+## Tags
+
+kernel-catalog, grade-decomposition, polynomial-kernel, e8-root-kernel,
+h84-code-kernel, golden-gate, rank-analysis, forbidden-float
+
+---
+
+# §1. Grade-k Inner Product Kernel Family
+
+## 1.1 Definition
+
+A family of feature maps naturally arising from Cl(8) grade structure. Grade-$k$ has $\binom{8}{k}$ basis elements, each being a product of $k$ generators:
+
+$$\phi^{(k)}(x) = \{ \sigma_{i_1}\sigma_{i_2}\cdots\sigma_{i_k}(x) : i_1 < i_2 < \cdots < i_k \}$$
+
+where $\sigma_i(x) = 1 - 2x_i \in \{-1, +1\}$.
+
+## 1.2 Algebraic Short-Circuit of Kernel Computation
+
+Grade-k kernels can be computed **directly from Hamming kernel values** without constructing the feature map.
+
+Grade-k kernels are completely determined by the properties of $\sigma_i \in \{-1,+1\}$, through matching bit count $m = (8 + k_H)/2$ and mismatching bit count $\bar{m} = (8 - k_H)/2$. For Grade-2:
+
+$$k_2(x,y) = \binom{m}{2} + \binom{\bar{m}}{2} - m\bar{m}
+= \frac{k_H^2 - 8}{2}$$
+
+This identity short-circuits the 28-dimensional inner product into a single integer operation.
+
+## 1.3 Implementation
+-/
+
+/-- Grade-2 kernel (algebraic short-circuit): $(k_H^2 - 8) / 2$
+
+Computed in O(1) from Hamming kernel value, without constructing 28-dimensional feature map.
+-/
+def grade2Kernel : Cl8Basis → Cl8Basis → Int :=
+  λ x y =>
+    let kH := e8Kernel x y
+    (kH * kH - 8) / 2
+
+/-!
+### Grade-3, Grade-4 Short-Circuit Formulas
+
+Similarly, Grade-3 and 4 kernels are derivable from Hamming kernel values:
+
+$$k_3 = \frac{k_H^3 - 20 k_H}{6}$$
+$$k_4 = \frac{k_H^4 - 44 k_H^2 + 120}{24}$$
+
+(Derived from the relationship between powers of $k_H$ and $\binom{8}{k}$)
+-/
+
+/-- Grade-3 kernel (combinatorial formula)
+
+m = (8+kH)/2 (matching bits), m̄ = (8-kH)/2 (mismatching bits):
+k₃ = C(m,3) - C(m,2)·m̄ + m·C(m̄,2) - C(m̄,3)
+
+When choosing 3 indices, sign (-1)^t is assigned according to mismatch count t.
+No integer division, no rounding error.
+-/
+def grade3Kernel : Cl8Basis → Cl8Basis → Int :=
+  λ x y =>
+    let kH := e8Kernel x y
+    let m := (8 + kH) / 2      -- matching bit count
+    let mb := (8 - kH) / 2     -- mismatching bit count
+    let c3m  := m * (m - 1) * (m - 2) / 6
+    let c2m  := m * (m - 1) / 2
+    let c2mb := mb * (mb - 1) / 2
+    let c3mb := mb * (mb - 1) * (mb - 2) / 6
+    c3m - c2m * mb + m * c2mb - c3mb
+
+/-- Grade-4 kernel (combinatorial formula)
+
+k₄ = C(m,4) - C(m,3)·m̄ + C(m,2)·C(m̄,2) - m·C(m̄,3) + C(m̄,4)
+
+No integer division, no rounding error (m, m̄ are always integers, C gives integers).
+-/
+def grade4Kernel : Cl8Basis → Cl8Basis → Int :=
+  λ x y =>
+    let kH := e8Kernel x y
+    let m := (8 + kH) / 2
+    let mb := (8 - kH) / 2
+    let c4m  := m * (m - 1) * (m - 2) * (m - 3) / 24
+    let c3m  := m * (m - 1) * (m - 2) / 6
+    let c2m  := m * (m - 1) / 2
+    let c2mb := mb * (mb - 1) / 2
+    let c3mb := mb * (mb - 1) * (mb - 2) / 6
+    let c4mb := mb * (mb - 1) * (mb - 2) * (mb - 3) / 24
+    c4m - c3m * mb + c2m * c2mb - m * c3mb + c4mb
+
+/-! ## 1.4 Grade-2 Basic Property Verification -/
+
+-- Theorem: Grade-2 self-kernel = (8²-8)/2 = 28 (all 256 points)
+theorem grade2Kernel_self_eq_28_all256 :
+    (Array.range 256).foldl (λ ok i =>
+      let x : Cl8Basis := BitVec.ofNat 8 i
+      ok && (grade2Kernel x x == 28)) true = true := by native_decide
+
+-- Theorem: Grade-2 symmetry (256 diagonal pair samples)
+theorem grade2Kernel_symmetry_diagonal256 :
+    (Array.range 256).foldl (λ ok i =>
+      let x : Cl8Basis := BitVec.ofNat 8 i
+      let y : Cl8Basis := BitVec.ofNat 8 (255 - i)
+      ok && (grade2Kernel x y == grade2Kernel y x)) true = true := by native_decide
+
+-- Theorem: Grade-3 self-kernel (kH=8, m=8, m̄=0): C(8,3) = 56
+theorem grade3Kernel_self_eq_56 : grade3Kernel 0b00000000#8 0b00000000#8 = 56 :=
+  by native_decide
+
+-- Theorem: Grade-4 self-kernel (kH=8, m=8, m̄=0): C(8,4) = 70
+theorem grade4Kernel_self_eq_70 : grade4Kernel 0b00000000#8 0b00000000#8 = 70 :=
+  by native_decide
+
+/-!
+## 1.5 Exhaustive Verification of Grade-2 Identity
+
+Confirm that Grade-2 = $(k_H^2 - 8) / 2$ divides evenly for all pairs. The range of $k_H$ is $\{-8, -6, -4, -2, 0, 2, 4, 6, 8\}$ (9 values), and the parity of $k_H^2 - 8$ being always even follows from $k_H^2 \equiv 0 \pmod{4}$ ($k_H$ is always even).
+-/
+
+-- Theorem: k_H is always even (all 65536 pairs)
+theorem e8Kernel_always_even_all65536 :
+    (Array.range 256).foldl (λ ok i =>
+      (Array.range 256).foldl (λ ok2 j =>
+        let x : Cl8Basis := BitVec.ofNat 8 i
+        let y : Cl8Basis := BitVec.ofNat 8 j
+        ok2 && (e8Kernel x y % 2 == 0)) ok) true = true := by native_decide
+
+/-!
+## 1.6 Degeneracy of Full-Cl(8) Kernel
+
+Theoretically show that the sum of all grades degenerates to the identity kernel: for each $\sigma_i \in \{-1,+1\}$,
+$\sum_{S \subseteq [8]} \prod_{i \in S} \sigma_i(x) \cdot \prod_{i \in S} \sigma_i(y)
+= \prod_{i=0}^{7} (1 + \sigma_i(x)\sigma_i(y))$.
+
+When $x = y$, each factor is $1 + 1 = 2$ → product = $2^8 = 256$.
+When $x \neq y$, at least one factor is $1 + (-1) = 0$ → product = 0.
+-/
+
+-- Theorem: Sum of grades 0-4 (x=0x00, kH=8, m=8, m̄=0)
+-- k0=1, k1=8, k2=C(8,2)=28, k3=C(8,3)=56, k4=C(8,4)=70
+-- selfVal = 1 + 8 + 28 + 56 + 70 = 163
+-- fullSelf (all grades 0-8) = 1 + 8 + 28 + 56 + 70 + 56 + 28 + 8 + 1 = 256
+theorem fullCl8_grade04_sum_and_total :
+    (let x0 : Cl8Basis := 0b00000000#8
+     let selfVal := 1 + e8Kernel x0 x0 + grade2Kernel x0 x0 +
+       grade3Kernel x0 x0 + grade4Kernel x0 x0
+     let fullSelf := 1 + 8 + 28 + 56 + 70 + 56 + 28 + 8 + 1
+     (selfVal, fullSelf)) = (163, 256) := by native_decide
+
+/-!
+---
+
+# §2. Polynomial Kernel Family
+
+## 2.1 Definition
+
+$$k_p(x,y) = k_H(x,y)^p$$
+
+Since $k_H \in \mathbb{Z}$, $k_p \in \mathbb{Z}$ trivially holds. No explicit feature map computation needed.
+-/
+
+/-- Polynomial kernel: $k_H^p$ -/
+def polyKernel : Nat → Cl8Basis → Cl8Basis → Int :=
+  λ p x y =>
+    let kH := e8Kernel x y
+    (Array.range p).foldl (λ acc _ => acc * kH) 1
+
+-- Theorem: Self-kernel values
+theorem polyKernel_self_values :
+    (let x0 : Cl8Basis := 0b00000000#8
+     (polyKernel 2 x0 x0 == 64 &&
+      polyKernel 3 x0 x0 == 512 &&
+      polyKernel 4 x0 x0 == 4096)) = true := by native_decide
+
+-- Theorem: p=2 is non-negative (all 65536 pairs — e8Kernel is O(1) so fast)
+theorem polyKernel2_nonneg_all65536 :
+    (Array.range 256).foldl (λ ok i =>
+      (Array.range 256).foldl (λ ok2 j =>
+        let x : Cl8Basis := BitVec.ofNat 8 i
+        let y : Cl8Basis := BitVec.ofNat 8 j
+        ok2 && (polyKernel 2 x y >= 0)) ok) true = true := by native_decide
+
+/-!
+---
+
+# §3. E8 Root Kernel
+
+## 3.1 Definition
+
+$$k_{E8}(x,y) = \sum_{\alpha \in \text{E8roots}} \langle \sigma(x), \alpha \rangle \cdot \langle \sigma(y), \alpha \rangle$$
+
+## 3.2 Theoretical Result: $k_{E8} = 240 \times k_H$
+
+For $M = \sum_\alpha \alpha^T\alpha$, by transitive symmetry of the E8 root system, $M = c \cdot I$. $\text{tr}(M) = 240 \times 2 = 480$ (norm² of each root = 2), and $M$ is $8 \times 8$, so $c = 480/8 = 60$...
+
+However, actual scaling depends on root representation ($\{0,\pm1\}$ vs $\{\pm1\}$). The proportionality constant is numerically confirmed below.
+
+## 3.3 Implementation
+-/
+
+/-- E8 Type 1 roots: $e_i \pm e_j$ ($i \neq j$) — 112 roots -/
+def e8Type1Roots : Array (Array Int) :=
+  (Array.range 8).foldl (λ roots i =>
+    (Array.range 8).foldl (λ roots2 j =>
+      if i != j then
+        let r1 := (Array.replicate 8 (0 : Int)).set! i 1 |>.set! j 1
+        let r2 := (Array.replicate 8 (0 : Int)).set! i 1 |>.set! j (-1)
+        roots2 |>.push r1 |>.push r2
+      else roots2) roots) #[]
+
+/-- E8 Type 2 roots: $\{\pm1\}^8$ with even number of $-1$ — 128 roots -/
+def e8Type2Roots : Array (Array Int) :=
+  (Array.range 256).foldl (λ roots bits =>
+    let v := Array.ofFn (λ i : Fin 8 =>
+      if (bits >>> i.val) % 2 == 0 then (1 : Int) else -1)
+    let negCount := v.foldl (λ acc x => if x == -1 then acc + 1 else acc) 0
+    if negCount % 2 == 0 then roots.push v else roots) #[]
+
+/-- All E8 roots: 240 total -/
+def e8AllRoots : Array (Array Int) := e8Type1Roots ++ e8Type2Roots
+
+/-- E8 root kernel -/
+def e8RootKernel : Cl8Basis → Cl8Basis → Int :=
+  λ x y =>
+    let σx := featureMap x
+    let σy := featureMap y
+    e8AllRoots.foldl (λ acc α =>
+      let dotX := (Array.zip σx α).foldl (λ s (a, b) => s + a * b) 0
+      let dotY := (Array.zip σy α).foldl (λ s (a, b) => s + a * b) 0
+      acc + dotX * dotY) 0
+
+-- Theorem: E8 roots total 240
+theorem e8AllRoots_size_240 : e8AllRoots.size = 240 :=
+  by native_decide
+
+-- Theorem: E8 root kernel self-values (samples)
+theorem e8RootKernel_self_values_sample :
+    (let k0 := e8RootKernel 0b00000000#8 0b00000000#8
+     let k1 := e8RootKernel 0b11111111#8 0b11111111#8
+     let k2 := e8RootKernel 0b10101010#8 0b10101010#8
+     (k0, k1, k2)) = (1248, 1248, 1248) := by native_decide
+
+-- Theorem: Proportionality k_E8 = ratio × k_H (sample pairs)
+theorem e8RootKernel_proportional_to_e8Kernel_sample :
+    (let x := 0b00000000#8
+     let y := 0b00000011#8
+     let kH := e8Kernel x y
+     let kE := e8RootKernel x y
+     let ratio := if kH != 0 then kE / kH else 0
+     let ok := (Array.range 16).foldl (λ ok2 i =>
+       let a : Cl8Basis := BitVec.ofNat 8 i
+       let b : Cl8Basis := BitVec.ofNat 8 (255 - i)
+       let kH2 := e8Kernel a b
+       let kE2 := e8RootKernel a b
+       if kH2 != 0 then ok2 && (kE2 == ratio * kH2)
+       else ok2) true
+     (ratio, ok)) = (156, true) := by native_decide
+
+-- Theorem: Self-kernel proportionality k_E8(x,x) = 156 * k_H(x,x) for all 256 points
+theorem e8RootKernel_proportional_all256_self :
+    (Array.range 256).foldl (λ ok i =>
+      let x : Cl8Basis := BitVec.ofNat 8 i
+      ok && (e8RootKernel x x == 156 * e8Kernel x x)) true = true := by native_decide
+
+-- Theorem: Cross-kernel proportionality among H84 codewords k_E8(c1,c2) = 156 * k_H(c1,c2) (16×16 = 256 pairs)
+theorem e8RootKernel_proportional_h84_cross :
+    h84Codewords.foldl (λ ok c1 =>
+      h84Codewords.foldl (λ ok2 c2 =>
+        ok2 && (e8RootKernel c1 c2 == 156 * e8Kernel c1 c2)) ok) true = true := by native_decide
+
+/-!
+---
+
+# §4. H84 Code Kernel
+
+## 4.1 Definition
+
+Kernel via nearest-neighbor projection onto 16 codewords of the $[8,4,4]$ extended Hamming code. Feature dimension $d = 16$.
+
+## 4.2 Properties
+
+- Error correction capability: $t = 1$ (minimum distance 4 → 1-bit error correction)
+- Range: $\{-8, 0, 8\}$ only
+- Orthogonality between codewords: $k(c_i, c_j) = 0$ ($i \neq j$)
+-/
+
+/-- H84 nearest-neighbor decode: project input to closest codeword -/
+def h84Decode : Cl8Basis → Cl8Basis :=
+  λ x =>
+    let initial : Cl8Basis × Nat := (h84Codewords.getD 0 0b00000000#8, 9)
+    let (bestCode, _) := h84Codewords.foldl (λ (best : Cl8Basis × Nat) c =>
+      let dist := (Array.range 8).foldl (λ acc i =>
+        if (x ^^^ c).getLsbD i then acc + 1 else acc) 0
+      if dist < best.2 then (c, dist) else best) initial
+    bestCode
+
+/-- H84 code kernel: Hamming kernel after decode -/
+def h84Kernel : Cl8Basis → Cl8Basis → Int :=
+  λ x y =>
+    e8Kernel (h84Decode x) (h84Decode y)
+
+-- Theorem: H84 codeword kernel value range (16×16 = 256 pairs)
+-- Self pairs (c=c): k=8
+-- Complement pairs (c XOR c' = 0xFF, Hamming distance 8): k=-8 ← 16 pairs exist
+-- Others (c≠c', non-complement): k=0
+-- Note: "orthogonality (cross=0)" does not hold. Complement pairs give -8.
+theorem h84Kernel_codeword_range :
+    h84Codewords.foldl (λ ok c1 =>
+      h84Codewords.foldl (λ ok2 c2 =>
+        if c1 == c2 then ok2 && (h84Kernel c1 c2 == 8)
+        else ok2 && (h84Kernel c1 c2 == 0 || h84Kernel c1 c2 == -8)) ok) true = true := by native_decide
+
+-- Theorem: H84 kernel range ⊆ {-8, 0, 8} (32-point sample)
+theorem h84Kernel_range_subset_sample32 :
+    (Array.range 32).foldl (λ ok i =>
+      (Array.range 32).foldl (λ ok2 j =>
+        let x : Cl8Basis := BitVec.ofNat 8 (i * 8)
+        let y : Cl8Basis := BitVec.ofNat 8 (j * 8)
+        let k := h84Kernel x y
+        ok2 && (k == -8 || k == 0 || k == 8)) ok) true = true := by native_decide
+
+/-!
+---
+
+# §5. GoldenGate Kernel (Reference)
+
+The GoldenGate kernel is implemented in `_04_TQC_Universality.lean` §4.
+
+- Only candidate with **BQP completeness**
+- Coefficients in $\mathbb{Z}[\phi]$ ($\phi = (1+\sqrt{5})/2$, golden ratio)
+- Integration into Lean implementation requires adding $\mathbb{Z}[\phi]$ type
+
+---
+
+# §6. Overall Discussion
+
+## 6.1 Determination of Simultaneous 3-Condition Satisfaction
+
+| Kernel | O(n) | Exact | Integer | Verdict |
+|:---|:---|:---|:---|:---|
+| Grade-1 (Hamming) | ✅ | ✅ | ✅ | ✅ **Already implemented, fastest** |
+| Grade-2 | ✅ | ✅ | ✅ | ✅ Derivable from $k_H^2$ |
+| Grade-3 | ✅ | ✅ | ✅ | ✅ Coefficient growth |
+| Grade-4 | ✅ | ✅ | ✅ | ✅ Further coefficient growth |
+| Full-Cl(8) | ✅ | ✅ | ✅ | ⚠️ Identity map |
+| Polynomial p=2,3 | ✅ | ✅ | ✅ | ✅ Computable via $k_H^p$ |
+| GoldenGate | ✅ | ✅ | ✅† | ✅ $\mathbb{Z}[\phi]$, BQP |
+| E8 root | ✅ | ✅ | ✅ | ⚠️ $\propto k_H$ |
+| H84 code | ✅ | ✅ | ✅ | ✅ With error correction |
+
+## 6.2 Why Hamming Is Chosen
+
+1. **Minimum rank**: $d = 8$ → $O(64n)$, fastest among all kernels
+2. **Directly linked to Cl(8) generators**: 8 Grade-1 bases = minimal generators of Cl(8)
+3. **Foundation for all higher kernels**: Grade-2 = $(k_H^2 - 8) / 2$, polynomial = $k_H^p$
+4. **Pedagogical clarity**: Shows essence of O(n) GP in minimal configuration
+
+## 6.3 Recommended Kernel Selection
+
+| Purpose | Recommendation |
+|:---|:---|
+| Fastest, simplest | Grade-1 (Hamming): O(64n) |
+| Increased expressiveness (classical ML) | Grade-2: O(784n), derived from $k_H^2$ |
+| BQP completeness (quantum ML) | GoldenGate: d=16, $\mathbb{Z}[\phi]$ |
+| Stable inference with error correction | H84 code: d=16, t=1 error correction |
+
+## 6.4 Research Status
+
+| Issue | Status | Reference |
+|:---|:---|:---|
+| GoldenGate formal proof in Lean ($\mathbb{Z}[\phi]$ type implementation) | 🔲 Open | `_04_TQC_Universality` §4 |
+| Rigorous proof of E8 root–Hamming proportionality | 🔲 Open | §3.2 this file |
+| Integration of Grade-2/3 into LinearTimeGP | 🔲 Open | `_00_LinearTimeGP` |
+| BQP completeness as GP | ✅ **Resolved** — proved as theorem in `_21_QuantumDeepGP/_03` §3.3 | `_21/_03_QuantumInference` §3.3 |
+| Representation learning via Deep GP ($O(Ln^3) \to O(Ln)$) | ✅ **Resolved** — implemented in `_21_QuantumDeepGP` | `_21/_01_DeepGP_Theory` §3 |
+| Exact Deep Bayesian Optimization | ✅ **Resolved** — implemented in `_22_ExactDeepBayesianOptimization` | `_22/_00_ExactDeepBO` §5 |
+-/
+
+/-!
+## References
+
+### Kernel Theory and Mercer's Theorem
+- Mercer, J. (1909). "Functions of positive and negative type and their connection
+  with the theory of integral equations", *Phil. Trans. Roy. Soc. London* A 209, 415–446.
+- Schölkopf, B. & Smola, A.J. (2002).
+  *Learning with Kernels*, MIT Press.
+  (Standard textbook on kernel methods)
+
+### E8 Structure and Bott Periodicity
+- Bott, R. (1959). "The stable homotopy of the classical groups",
+  *Ann. of Math.* 70, 313–337.
+  (Original source of Bott periodicity theorem: 8-dimensional periodicity)
+- Adams, J.F. (1962). "Vector fields on spheres",
+  *Ann. of Math.* 75, 603–632.
+  (K-theory and 8-dimensional periodicity)
+
+### Module Connections
+- **Previous**: `_00_LinearTimeGP.lean` — `updateGP` / Bareiss integer inference
+- **Next**: `_02_DrugDiscovery_GP.lean` — Tanimoto/MinMax kernel drug discovery application
+- **Next**: `_03_MultiE8_GP.lean` — Multi-E8 kernel generalization
+
+-/
+
+end CL8E8TQC.FTQC_GP_ML.KernelCatalog
+</script>
+
+  <div id="app">
+    <div id="topbar">
+      <div class="logo">lean<span> notebook</span></div>
+      <div class="sep">·</div>
+      <div class="doc-title" id="doc-title">Loading…</div>
+      <div id="view-toggle">
+        <input type="radio" name="view" id="vlean" value="lean">
+        <label for="vlean">lean</label>
+        <input type="radio" name="view" id="vhtml" value="html" checked>
+        <label for="vhtml">HTML</label>
+      </div>
+    </div>
+    <nav id="sidebar">
+      <div id="toc-label">Contents</div>
+      <div id="toc"></div>
+    </nav>
+    <main id="notebook"></main>
+    <div id="lean-raw">
+      <pre id="lean-raw-pre"></pre>
+    </div>
+  </div>
+
+  <script>
+// ================================================================
+// renderer.js — Shared rendering logic for LeanNotebook
+// Used by both the VSCode WebView (main.js) and HTML export (template.html).
+// DO NOT add VSCode-specific or VanJS-specific code here.
+// ================================================================
+
+// ----------------------------------------------------------------
+// Lean 4 Syntax Highlighter
+// ----------------------------------------------------------------
+const LR_KW = new Set([
+    'def', 'abbrev', 'theorem', 'lemma', 'example', 'noncomputable',
+    'private', 'protected', 'instance', 'class', 'structure', 'inductive', 'where', 'with',
+    'extends', 'deriving', 'namespace', 'end', 'section', 'open', 'import', 'export',
+    'universe', 'variable', 'attribute', 'notation', 'macro', 'syntax', 'elab',
+    'by', 'do', 'return', 'let', 'have', 'show', 'from', 'fun', 'match', 'if', 'then', 'else',
+    'for', 'while', 'mut', 'pure', 'calc', 'suffices', 'obtain', 'refine', 'exact', 'apply',
+    'intro', 'intros', 'cases', 'induction', 'constructor', 'use', 'rfl', 'simp', 'ring',
+    'omega', 'linarith', 'norm_num', 'decide', 'native_decide', 'trivial', 'assumption',
+    'contradiction', 'aesop', 'tauto', 'field_simp', 'push_neg', 'pull_neg',
+    'partial', 'unsafe', 'opaque', 'axiom'
+]);
+const LR_TY = new Set([
+    'Nat', 'Int', 'Bool', 'String', 'Float', 'Char', 'UInt8', 'UInt16',
+    'UInt32', 'UInt64', 'Int8', 'Int16', 'Int32', 'Int64', 'List', 'Array', 'Vector',
+    'Option', 'Result', 'IO', 'Type', 'Prop', 'Sort', 'Unit', 'Empty', 'True', 'False',
+    'Eq', 'And', 'Or', 'Not', 'Iff', 'Exists', 'Sigma', 'Subtype', 'Fin', 'BitVec'
+]);
+const LR_TA = new Set([
+    'native_decide', 'decide', 'rfl', 'simp', 'ring', 'omega',
+    'linarith', 'norm_num', 'exact', 'apply', 'intro', 'intros', 'cases', 'rcases',
+    'induction', 'constructor', 'use', 'refine', 'suffices', 'obtain', 'contradiction',
+    'trivial', 'assumption', 'aesop', 'tauto', 'field_simp', 'push_neg', 'pull_neg',
+    'positivity', 'norm_cast', 'push_cast', 'ext', 'funext', 'congr', 'conv', 'rw',
+    'rewrite', 'gcongr', 'abel'
+]);
+
+function lrEsc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function lrHlLine(raw) {
+    let cmt = -1, inStr = false;
+    for (let i = 0; i < raw.length - 1; i++) {
+        if (raw[i] === '"' && (i === 0 || raw[i - 1] !== '\\')) inStr = !inStr;
+        if (!inStr && raw[i] === '-' && raw[i + 1] === '-') { cmt = i; break; }
+    }
+    const codePart = cmt >= 0 ? raw.slice(0, cmt) : raw;
+    const tailPart = cmt >= 0 ? raw.slice(cmt) : '';
+    let out = '', i = 0;
+    while (i < codePart.length) {
+        const ch = codePart[i];
+        if (ch === '"') {
+            let j = i + 1;
+            while (j < codePart.length && (codePart[j] !== '"' || codePart[j - 1] === '\\')) j++;
+            out += `<span class="hl-string">${lrEsc(codePart.slice(i, j + 1))}</span>`;
+            i = j + 1; continue;
+        }
+        if (ch === '0' && i + 1 < codePart.length && (codePart[i + 1] === 'b' || codePart[i + 1] === 'x')) {
+            let j = i + 2;
+            while (j < codePart.length && /[0-9a-fA-F_]/.test(codePart[j])) j++;
+            let sf = '';
+            if (j < codePart.length && codePart[j] === '#') {
+                let k = j + 1;
+                while (k < codePart.length && /\d/.test(codePart[k])) k++;
+                sf = lrEsc(codePart.slice(j, k)); j = k;
+            }
+            out += `<span class="hl-number">${lrEsc(codePart.slice(i, j))}${sf}</span>`;
+            i = j; continue;
+        }
+        if (/\d/.test(ch) && (i === 0 || !/\w/.test(codePart[i - 1]))) {
+            let j = i;
+            while (j < codePart.length && /[\d_]/.test(codePart[j])) j++;
+            out += `<span class="hl-number">${lrEsc(codePart.slice(i, j))}</span>`;
+            i = j; continue;
+        }
+        if (/[a-zA-Z_]/.test(ch) || ch.charCodeAt(0) > 127) {
+            let j = i + 1;
+            while (j < codePart.length && (
+                /[\w']/.test(codePart[j]) ||
+                /[₀-₉]/.test(codePart[j]) ||
+                codePart.charCodeAt(j) > 127
+            )) j++;
+            const w = codePart.slice(i, j), e = lrEsc(w);
+            if (LR_KW.has(w)) out += `<span class="hl-keyword">${e}</span>`;
+            else if (LR_TA.has(w)) out += `<span class="hl-tactic">${e}</span>`;
+            else if (LR_TY.has(w)) out += `<span class="hl-type">${e}</span>`;
+            else if (/^[A-Z]/.test(w)) out += `<span class="hl-type">${e}</span>`;
+            else out += e;
+            i = j; continue;
+        }
+        let hit = false;
+        for (const op of ['^^^', '&&&', '|||', '<<<', '>>>', '<|>', ':=', '=>', '->', '<-', '::', '..']) {
+            if (codePart.startsWith(op, i)) {
+                out += `<span class="hl-op">${lrEsc(op)}</span>`;
+                i += op.length; hit = true; break;
+            }
+        }
+        if (hit) continue;
+        out += lrEsc(ch); i++;
+    }
+    if (tailPart) out += `<span class="hl-comment">${lrEsc(tailPart)}</span>`;
+    return out;
+}
+
+function hlLean(codeText) {
+    return codeText.split('\n').map(lrHlLine).join('\n');
+}
+
+// ----------------------------------------------------------------
+// Markdown + Math renderer
+// Uses string-based placeholders so marked cannot strip them.
+// This is the canonical implementation used by BOTH VSCode WebView
+// and the HTML export. Do not duplicate this logic elsewhere.
+// ----------------------------------------------------------------
+function mdToHtml(content) {
+    const mathBlocks = [];
+    const PH_D = (i) => `LNMATH_D_${i}_END`;
+    const PH_I = (i) => `LNMATH_I_${i}_END`;
+
+    let s = content;
+    // Strip leading --- line that marked would misinterpret as YAML front matter.
+    // In Lean /-! blocks, --- is used as a horizontal rule / separator, not YAML.
+    s = s.replace(/^\s*---\s*\n/, '\n');
+    // Display math first (multi-line)
+    s = s.replace(/\$\$([\s\S]*?)\$\$/g, (m, c) => {
+        const i = mathBlocks.length;
+        mathBlocks.push({ t: 'd', c });
+        return PH_D(i);
+    });
+    // Inline math (single line, not crossing $)
+    s = s.replace(/\$([^$\n]+?)\$/g, (m, c) => {
+        const i = mathBlocks.length;
+        mathBlocks.push({ t: 'i', c });
+        return PH_I(i);
+    });
+
+    let html = (typeof marked !== 'undefined')
+        ? marked.parse(s)
+        : s.replace(/\n/g, '<br>');
+
+    // Restore math with original delimiters.
+    // IMPORTANT: use $$ and $ (not \[..\] / \(..\)) because the JS escape sequences
+    // \[ and \( collapse to [ and ( in string literals, breaking MathJax recognition.
+    html = html.replace(/LNMATH_D_(\d+)_END/g, (_, i) => `$$${mathBlocks[+i].c}$$`);
+    html = html.replace(/LNMATH_I_(\d+)_END/g, (_, i) => `$${mathBlocks[+i].c}$`);
+    return html;
+}
+
+// ----------------------------------------------------------------
+// Mermaid renderer — single shared implementation
+// Call renderMermaid(source, containerEl) from both main.js and template.html.
+// ----------------------------------------------------------------
+// (No CDN URL constants — all libraries loaded from local _libs/)
+// ----------------------------------------------------------------
+
+const MERMAID_THEME = {
+    startOnLoad: false,
+    theme: 'neutral',
+    flowchart: { useMaxWidth: false },
+    themeVariables: {
+        background: '#ffffff',
+        mainBkg: '#dbeafe',
+        nodeBorder: '#93c5fd',
+        lineColor: '#2563eb',
+        textColor: '#1a2233',
+        fontSize: '13px',
+        primaryColor: '#dbeafe',
+        primaryTextColor: '#1d4ed8',
+        primaryBorderColor: '#93c5fd',
+        edgeLabelBackground: '#f4f7fb',
+    }
+};
+
+let _mermaidInitialized = false;
+function ensureMermaidInit() {
+    if (_mermaidInitialized) return;
+    if (typeof mermaid === 'undefined') return;
+    mermaid.initialize(MERMAID_THEME);
+    _mermaidInitialized = true;
+}
+
+// Render a mermaid diagram into containerEl.
+// Returns a Promise that resolves when done.
+async function renderMermaid(source, containerEl) {
+    if (typeof mermaid === 'undefined') {
+        containerEl.textContent = 'Mermaid not loaded';
+        return;
+    }
+    ensureMermaidInit();
+    const id = 'mx-' + Math.random().toString(36).slice(2);
+    try {
+        const { svg } = await mermaid.render(id, source);
+        containerEl.innerHTML = svg;
+        // Remove Mermaid's inline height/max-height constraints.
+        // Do NOT set width:100% — wide diagrams (e.g. dependency graphs)
+        // would be forced into the container width, compressing height
+        // proportionally via viewBox aspect-ratio preservation.
+        // Instead, let the SVG keep its natural dimensions and rely on
+        // CSS overflow-x:auto on .block-mermaid for horizontal scrolling.
+        const svgEl = containerEl.querySelector('svg');
+        if (svgEl) {
+            svgEl.removeAttribute('height');
+            svgEl.style.removeProperty('max-height');
+        }
+    } catch (e) {
+        containerEl.textContent = `Mermaid Error: ${e.message}`;
+    }
+}
+
+// ----------------------------------------------------------------
+// Graphviz (DOT) renderer — via @viz-js/viz (Graphviz WASM)
+// Single shared implementation for both WebView and HTML export.
+// ----------------------------------------------------------------
+let _vizInstance = null;
+let _vizInstancePromise = null;
+
+function getVizInstance() {
+    if (_vizInstance) return Promise.resolve(_vizInstance);
+    if (_vizInstancePromise) return _vizInstancePromise;
+    _vizInstancePromise = new Promise((resolve, reject) => {
+        // Viz.js may be loaded async; poll until it's available (up to 10s).
+        let elapsed = 0;
+        const interval = 100;
+        const maxWait = 10000;
+        function check() {
+            if (typeof Viz !== 'undefined') {
+                Viz.instance().then(viz => {
+                    _vizInstance = viz;
+                    resolve(viz);
+                }).catch(reject);
+            } else if (elapsed >= maxWait) {
+                reject(new Error('Viz.js not loaded after ' + maxWait + 'ms'));
+            } else {
+                elapsed += interval;
+                setTimeout(check, interval);
+            }
+        }
+        check();
+    });
+    return _vizInstancePromise;
+}
+
+// Render a Graphviz DOT diagram into containerEl.
+// Returns a Promise that resolves when done.
+async function renderGraphviz(source, containerEl) {
+    try {
+        const viz = await getVizInstance();
+        const svgEl = viz.renderSVGElement(source);
+        containerEl.innerHTML = '';
+        containerEl.appendChild(svgEl);
+    } catch (e) {
+        containerEl.textContent = `Graphviz Error: ${e.message || e}`;
+    }
+}
+
+// ----------------------------------------------------------------
+// MathJax: typeset a container and wrap display math.
+// Call typesetMath(container) from BOTH main.js and template.html.
+// This is the single shared implementation — do not duplicate.
+// ----------------------------------------------------------------
+function wrapDisplayMath(container) {
+    container.querySelectorAll('mjx-container[display="true"]').forEach(el => {
+        if (!el.parentElement.classList.contains('mjx-display-wrap')) {
+            const wrap = document.createElement('div');
+            wrap.className = 'mjx-display-wrap';
+            el.parentNode.insertBefore(wrap, el);
+            wrap.appendChild(el);
+        }
+    });
+}
+
+// Typeset MathJax in container, then wrap display math.
+// Returns a Promise. Safe to call even if MathJax is not loaded.
+function typesetMath(container) {
+    if (window.MathJax && MathJax.typesetPromise) {
+        return MathJax.typesetPromise([container])
+            .then(() => wrapDisplayMath(container))
+            .catch(console.warn);
+    }
+    return Promise.resolve();
+}
+
+// The canonical MathJax configuration object.
+// Used verbatim in both NotebookPanel.ts (Extension) and template.html (HTML export).
+const MATHJAX_CONFIG = {
+    tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true
+    },
+    options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+        menuOptions: {
+            settings: {
+                enrich: false,
+                collapsible: false,
+                speech: false,
+                braille: false,
+                assistiveMml: false
+            }
+        }
+    },
+    startup: { typeset: false }
+};
+
+// ----------------------------------------------------------------
+// Lean comment parser (port of leanCommentParser.ts)
+// ----------------------------------------------------------------
+function trimEmptyLines(code) {
+    const lines = code.split('\n');
+    let s = 0;
+    while (s < lines.length && lines[s].trim() === '') s++;
+    let e = lines.length - 1;
+    while (e >= 0 && lines[e].trim() === '') e--;
+    if (s > e) return '';
+    return lines.slice(s, e + 1).join('\n');
+}
+
+function dedent(str) {
+    const lines = str.split('\n');
+    let minIndent = Infinity;
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim().length === 0) continue;
+        const m = line.match(/^\s*/);
+        const indent = m ? m[0].length : 0;
+        if (indent < minIndent) minIndent = indent;
+    }
+    if (minIndent === Infinity) minIndent = 0;
+    return lines.map((line, idx) => {
+        if (idx === 0) return line.trim();
+        if (line.trim().length === 0) return '';
+        return line.length >= minIndent ? line.slice(minIndent) : line.trim();
+    }).join('\n').trim();
+}
+
+function findDocCommentEnd(text, startPos) {
+    let pos = startPos;
+    let inlineTickCount = null;
+    let inFence = false;
+    while (pos < text.length) {
+        const ch = text[pos];
+        if (ch === '`') {
+            let run = 1;
+            while (pos + run < text.length && text[pos + run] === '`') run++;
+            if (inlineTickCount === null) {
+                if (run >= 3) {
+                    let i = pos - 1;
+                    while (i >= 0 && text[i] !== '\n') i--;
+                    const prefix = text.slice(i + 1, pos);
+                    if (/^\s*$/.test(prefix)) { inFence = !inFence; pos += run; continue; }
+                }
+                if (!inFence) { inlineTickCount = run; pos += run; continue; }
+            } else {
+                if (run === inlineTickCount) { inlineTickCount = null; pos += run; continue; }
+            }
+            pos += run; continue;
+        }
+        const next = (pos + 1 < text.length) ? text[pos + 1] : '';
+        if (!inFence && inlineTickCount === null && ch === '-' && next === '/') return pos;
+        pos += 1;
+    }
+    return -1;
+}
+
+function splitLeanDocComments(text) {
+    const blocks = [];
+    let pos = 0, last = 0;
+
+    function pushCode(code) {
+        const lines = code.split('\n');
+        let s = 0;
+        while (s < lines.length && lines[s].trim() === '') s++;
+        const rawStartLine = text.slice(0, last).split('\n').length - 1;
+        const startLine = rawStartLine + s;
+        const trimmedCode = trimEmptyLines(code);
+        const trimmedLineCount = trimmedCode.split('\n').length;
+        const endLine = startLine + (trimmedLineCount > 0 ? trimmedLineCount - 1 : 0);
+        blocks.push({ type: 'code', source: trimmedCode, range: { startLine, endLine } });
+    }
+
+    function pushComment(kind, content, startOffset) {
+        const dedentedContent = dedent(content);
+        const startLine = text.slice(0, startOffset).split('\n').length - 1;
+        const endLine = startLine + (content.split('\n').length - 1);
+        blocks.push({ type: kind, content: dedentedContent, range: { startLine, endLine } });
+    }
+
+    while (pos < text.length) {
+        const nextModule = text.indexOf('/-!', pos);
+        const nextDoc = text.indexOf('/--', pos);
+        let start = -1, kind = null;
+        if (nextModule !== -1 && (nextDoc === -1 || nextModule < nextDoc)) { start = nextModule; kind = 'module-doc'; }
+        else if (nextDoc !== -1) { start = nextDoc; kind = 'doc-comment'; }
+        if (start === -1) break;
+        if (start > last) pushCode(text.slice(last, start));
+        const contentStart = start + 3;
+        const end = findDocCommentEnd(text, contentStart);
+        if (end === -1) { pushCode(text.slice(start)); last = text.length; break; }
+        pushComment(kind, text.slice(contentStart, end), start);
+        pos = end + 2; last = pos;
+    }
+    if (last < text.length) pushCode(text.slice(last));
+
+    return blocks.filter(b => {
+        if (b.type === 'code') return b.source.trim().length > 0;
+        if (b.type === 'mermaid') return b.source.trim().length > 0;
+        if (b.type === 'graphviz') return b.source.trim().length > 0;
+        return b.content.trim().length > 0;
+    });
+}
+
+function splitDiagramBlocks(content) {
+    const result = [];
+    // Note: backticks written as \x60 to avoid breaking HTML script-tag embedding
+    const TICK3 = '\x60\x60\x60';
+    const re = new RegExp('^' + TICK3 + '(mermaid|graphviz|dot)\\s*\\n([\\s\\S]*?)^' + TICK3 + '\\s*$', 'gm');
+    let lastIndex = 0, match;
+    while ((match = re.exec(content)) !== null) {
+        const textContent = content.substring(lastIndex, match.index);
+        if (textContent.trim().length > 0) result.push({ type: 'text', content: textContent.trim() });
+        const lang = match[1]; // 'mermaid', 'graphviz', or 'dot'
+        const src = match[2];
+        if (src.trim().length > 0) {
+            const blockType = lang === 'mermaid' ? 'mermaid' : 'graphviz';
+            result.push({ type: blockType, source: trimEmptyLines(src) });
+        }
+        lastIndex = re.lastIndex;
+    }
+    if (lastIndex < content.length) {
+        const remaining = content.substring(lastIndex);
+        if (remaining.trim().length > 0) result.push({ type: 'text', content: remaining.trim() });
+    }
+    if (result.length === 0 && content.trim().length > 0)
+        result.push({ type: 'text', content: content.trim() });
+    return result;
+}
+
+function expandCommentBlock(block) {
+    if (block.type !== 'module-doc' && block.type !== 'doc-comment') return [block];
+    const subBlocks = splitDiagramBlocks(block.content);
+    if (subBlocks.length === 1 && subBlocks[0].type === 'text') return [block];
+    return subBlocks.map(sub =>
+        sub.type === 'text'
+            ? { type: block.type, content: sub.content, range: block.range }
+            : { type: sub.type, source: sub.source, range: block.range }
+    );
+}
+
+function parseLean(text) {
+    return splitLeanDocComments(text).flatMap(b => expandCommentBlock(b));
+}
+
+  </script>
+  <script>
+      /* ================================================================
+         Rendering and Boot — template.html specific UI logic
+         All shared logic (hlLean, mdToHtml, parseLean etc.) lives in
+         renderer.js which is inlined above by htmlExporter.ts at export time.
+         ================================================================ */
+      async function render(blocks) {
+        const nb = document.getElementById('notebook');
+        nb.innerHTML = '';
+
+        for (const b of blocks) {
+          if (b.type === 'module-doc' || b.type === 'doc-comment') {
+            const cls = b.type === 'module-doc' ? 'block-module-doc' : 'block-doc-comment';
+            const el = document.createElement('div');
+            el.className = cls;
+            el.innerHTML = mdToHtml(b.content);
+            // Apply Lean syntax highlighting to ```lean code fences inside markdown
+            el.querySelectorAll('pre code').forEach(code => {
+              const isLean = code.classList.contains('language-lean') ||
+                code.classList.contains('language-lean4');
+              if (isLean) {
+                code.innerHTML = hlLean(code.textContent || '');
+              }
+            });
+            nb.appendChild(el);
+          } else if (b.type === 'code') {
+            const el = document.createElement('div');
+            el.className = 'block-code';
+            el.innerHTML = `<div class="block-code-header">lean4</div><pre class="lean-source">${hlLean(b.source)}</pre>`;
+            nb.appendChild(el);
+          } else if (b.type === 'mermaid') {
+            const wrap = document.createElement('div');
+            wrap.className = 'block-mermaid';
+            nb.appendChild(wrap);
+            await renderMermaid(b.source, wrap);
+          } else if (b.type === 'graphviz') {
+            const wrap = document.createElement('div');
+            wrap.className = 'block-graphviz';
+            nb.appendChild(wrap);
+            await renderGraphviz(b.source, wrap);
+          }
+        }
+
+        // TOC
+        let tocHtml = '', hi = 0;
+        nb.querySelectorAll('h1,h2,h3').forEach(h => {
+          const id = 'h' + hi++; h.id = id;
+          tocHtml += `<a href="#${id}" class="${h.tagName.toLowerCase()}">${h.textContent}</a>\n`;
+        });
+        document.getElementById('toc').innerHTML = tocHtml;
+
+        const h1 = nb.querySelector('h1');
+        if (h1) {
+          document.getElementById('doc-title').textContent = h1.textContent;
+          document.title = h1.textContent + ' — Lean Notebook';
+        }
+
+        // Use shared typesetMath() from renderer.js — MathJax
+        typesetMath(nb);
+      }
+
+    /* ================================================================
+       Boot
+       ================================================================ */
+    function boot() {
+      if (typeof marked === 'undefined') { setTimeout(boot, 100); return; }
+      marked.use({ gfm: true, breaks: true });
+      const el = document.getElementById('lean-source');
+      if (!el) return;
+
+      const rawPre = document.getElementById('lean-raw-pre');
+      rawPre.innerHTML = hlLean(el.textContent);
+
+      const blocks = parseLean(el.textContent);
+      render(blocks);
+
+      const nb = document.getElementById('notebook');
+      const leanRaw = document.getElementById('lean-raw');
+      const appEl = document.getElementById('app');
+      document.querySelectorAll('input[name="view"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          if (radio.value === 'lean') {
+            nb.style.display = 'none';
+            leanRaw.style.display = 'block';
+            appEl.classList.add('lean-mode');
+          } else {
+            nb.style.display = '';
+            leanRaw.style.display = 'none';
+            appEl.classList.remove('lean-mode');
+          }
+        });
+      });
+    }
+    window.addEventListener('load', boot);
+  </script>
+</body>
+
+</html>

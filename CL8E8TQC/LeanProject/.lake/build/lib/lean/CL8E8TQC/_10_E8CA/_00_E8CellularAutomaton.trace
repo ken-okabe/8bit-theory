@@ -1,0 +1,30 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["27e003fa59776b36.olean"],
+  "i": "ca5caa5e2bb5c7a6.ilean",
+  "c": "b7c24646ba22c09c.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean /nix/store/4gr3n4nrp0xxgykyyzdxi3xjj2ikn5x1-lean4-4.25.0/bin/lean /home/ken/Documents/8bit-physics/____working/_en/CL8E8TQC/_10_E8CA/_00_E8CellularAutomaton.lean -o /home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_10_E8CA/_00_E8CellularAutomaton.olean -i /home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_10_E8CA/_00_E8CellularAutomaton.ilean -c /home/ken/Documents/8bit-physics/____working/_en/.lake/build/ir/CL8E8TQC/_10_E8CA/_00_E8CellularAutomaton.c --setup /home/ken/Documents/8bit-physics/____working/_en/.lake/build/ir/CL8E8TQC/_10_E8CA/_00_E8CellularAutomaton.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["CL8E8TQC._10_E8CA._00_E8CellularAutomaton:deps",
+   [["deps",
+     [["CL8E8TQC/e8ca:extraDep", [["@CL8E8TQC:extraDep", "00000000000006bb"]]],
+      ["imports",
+       [["CL8E8TQC._05_SpectralTriple._02_DiracSquared transitive imports (legacy)",
+         "94de96c0ff8a13aa"],
+        ["CL8E8TQC._05_SpectralTriple._02_DiracSquared:importAllArts",
+         "9767f65b0af339eb"]]]]],
+    ["libs",
+     [["import dynlibs", "00000000000006bb"],
+      ["package external libraries", "00000000000006bb"],
+      ["module dynlibs", "00000000000006bb"],
+      ["module plugins", "00000000000006bb"]]]]],
+  ["Lean 4.25.0, commit v4.25.0", "9c3a3ade3a41d5d0"],
+  ["/home/ken/Documents/8bit-physics/____working/_en/CL8E8TQC/_10_E8CA/_00_E8CellularAutomaton.lean",
+   "7fba14082c274b71"],
+  ["options", "00000000000006bb"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "9f5a8d26f1d8576a"}

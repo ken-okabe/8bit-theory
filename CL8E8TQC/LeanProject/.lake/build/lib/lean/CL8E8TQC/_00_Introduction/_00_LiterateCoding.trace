@@ -1,0 +1,27 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["a0a8cd2c8b46c7ec.olean"],
+  "i": "1c0588996401c7dc.ilean",
+  "c": "c4875a7ca0ad2012.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean /nix/store/4gr3n4nrp0xxgykyyzdxi3xjj2ikn5x1-lean4-4.25.0/bin/lean /home/ken/Documents/8bit-physics/____working/_en/CL8E8TQC/_00_Introduction/_00_LiterateCoding.lean -o /home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_00_Introduction/_00_LiterateCoding.olean -i /home/ken/Documents/8bit-physics/____working/_en/.lake/build/lib/lean/CL8E8TQC/_00_Introduction/_00_LiterateCoding.ilean -c /home/ken/Documents/8bit-physics/____working/_en/.lake/build/ir/CL8E8TQC/_00_Introduction/_00_LiterateCoding.c --setup /home/ken/Documents/8bit-physics/____working/_en/.lake/build/ir/CL8E8TQC/_00_Introduction/_00_LiterateCoding.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["CL8E8TQC._00_Introduction._00_LiterateCoding:deps",
+   [["deps",
+     [["CL8E8TQC/CL8E8TQC:extraDep",
+       [["@CL8E8TQC:extraDep", "00000000000006bb"]]],
+      ["imports", "00000000000006bb"]]],
+    ["libs",
+     [["import dynlibs", "00000000000006bb"],
+      ["package external libraries", "00000000000006bb"],
+      ["module dynlibs", "00000000000006bb"],
+      ["module plugins", "00000000000006bb"]]]]],
+  ["Lean 4.25.0, commit v4.25.0", "9c3a3ade3a41d5d0"],
+  ["/home/ken/Documents/8bit-physics/____working/_en/CL8E8TQC/_00_Introduction/_00_LiterateCoding.lean",
+   "196e2aa7687eb692"],
+  ["options", "00000000000006bb"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "ada782228f54dc22"}

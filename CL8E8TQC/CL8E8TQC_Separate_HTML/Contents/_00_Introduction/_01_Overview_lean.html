@@ -1,0 +1,2047 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lean Notebook Viewer</title>
+  <script>
+    // MathJax config — from MATHJAX_CONFIG in renderer.js (single source of truth).
+    MathJax = {"tex":{"inlineMath":[["$","$"]],"displayMath":[["$$","$$"]],"processEscapes":true},"options":{"skipHtmlTags":["script","noscript","style","textarea","pre","code"],"menuOptions":{"settings":{"enrich":false,"collapsible":false,"speech":false,"braille":false,"assistiveMml":false}}},"startup":{"typeset":false}};
+  </script>
+  <script async src="../../_libs/tex-svg.js"></script>
+  <script src="../../_libs/marked.min.js"></script>
+  <script src="../../_libs/mermaid.min.js"></script>
+  <script src="../../_libs/viz-standalone.js" async></script>
+  <style>
+    /* Injected from style.css by htmlExporter.ts — do NOT edit here. Edit style.css instead. */
+    /* style.css — LeanNotebook VSCode Extension
+   Identical CSS for both the static HTML viewer and the Extension WebView.
+   Overrides VSCode user themes to prioritize the Lean brand.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  /* Lean brand: white + blue */
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface-alt: #eef2f8;
+  --border: #d0daea;
+  --border-soft: #e4eaf4;
+  --text: #1a2233;
+  --text-muted: #4a5a78;
+  --text-dim: #8a9ab8;
+  /* Lean blue palette */
+  --blue: #2563eb;
+  --blue-light: #3b82f6;
+  --blue-pale: #dbeafe;
+  --blue-dim: #93c5fd;
+  --blue-dark: #1d4ed8;
+  /* syntax */
+  --hl-keyword: #1d4ed8;
+  --hl-tactic: #7c3aed;
+  --hl-type: #0369a1;
+  --hl-string: #15803d;
+  --hl-number: #b45309;
+  --hl-comment: #94a3b8;
+  --hl-op: #475569;
+  /* code bg */
+  --code-bg: #f0f4ff;
+  --radius: 7px;
+  --font-prose: 'Source Serif 4', Georgia, serif;
+  --font-code: 'Fira Code', 'Courier New', monospace;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --shadow-sm: 0 1px 3px rgba(37, 99, 235, .08), 0 1px 2px rgba(0, 0, 0, .04);
+  --shadow-md: 0 4px 12px rgba(37, 99, 235, .10), 0 1px 4px rgba(0, 0, 0, .05);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ================================================================
+   Overall Layout: Sidebar + Main Content
+   Extension WebView: #layout
+   HTML Export: #app (topbar + sidebar + notebook)
+   ================================================================ */
+
+/* --- Common root grid (#app) --- */
+#app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+#topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+#topbar .logo {
+  font-family: var(--font-code);
+  font-size: 14px;
+  color: var(--blue);
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+#topbar .logo span {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+#topbar .doc-title {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#topbar .sep {
+  color: var(--border);
+}
+
+#view-toggle {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 3px;
+  gap: 2px;
+}
+
+#view-toggle label {
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background .15s, color .15s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+#view-toggle input[type=radio] {
+  display: none;
+}
+
+#view-toggle input[type=radio]:checked+label {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, .25);
+}
+
+#notebook {
+  padding: 48px 60px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#lean-raw {
+  display: none;
+  padding: 48px 60px;
+  max-width: none;
+  grid-column: 2;
+  overflow: auto;
+}
+
+#lean-raw pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.7;
+  tab-size: 2;
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+  white-space: pre;
+}
+
+#app.lean-mode {
+  grid-template-columns: 0 1fr;
+}
+
+#app.lean-mode #sidebar {
+  display: none;
+}
+
+#app.lean-mode #lean-raw {
+  grid-column: 1 / -1;
+  padding: 48px 60px;
+  display: block;
+}
+
+@media(max-width:900px) {
+  #app {
+    grid-template-columns: 1fr;
+  }
+
+  #app #sidebar {
+    display: none;
+  }
+
+  #notebook {
+    padding: 28px 20px;
+  }
+
+  #lean-raw {
+    grid-column: 1;
+    padding: 28px 20px;
+  }
+}
+
+/* ---- Sidebar ---- */
+#sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+#toc-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 18px 10px;
+}
+
+#toc a {
+  display: block;
+  padding: 4px 18px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color .15s, background .15s;
+  line-height: 1.5;
+  border-left: 2px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#toc a:hover {
+  color: var(--blue);
+  background: var(--blue-pale);
+  border-left-color: var(--blue-light);
+}
+
+#toc a.h1 {
+  font-weight: 600;
+  color: var(--text);
+  padding-left: 18px;
+  margin-top: 6px;
+}
+
+#toc a.h2 {
+  padding-left: 28px;
+}
+
+#toc a.h3 {
+  padding-left: 40px;
+  font-size: 11.5px;
+}
+
+/* ---- Main Content ---- */
+#notebook {
+  min-width: 0;
+  width: 100%;
+}
+
+/* ================================================================
+   Prose Blocks (shared)
+   ================================================================ */
+.block-module-doc,
+.block-doc-comment {
+  font-family: var(--font-prose);
+  font-size: 17px;
+  line-height: 1.85;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+/* --- module-doc: white card --- */
+.block-module-doc {
+  padding: 32px 36px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- doc-comment: left blue border --- */
+.block-doc-comment {
+  padding: 16px 20px;
+  border-left: 3px solid var(--blue-light);
+  background: var(--blue-pale);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* ================================================================
+   Prose Typography (shared)
+   ================================================================ */
+.block-module-doc h1,
+.block-doc-comment h1,
+.block-doc-comment h1,
+.block-doc-comment h1 {
+  font-size: 1.9em;
+  font-weight: 600;
+  color: var(--blue-dark);
+  border-bottom: 2px solid var(--blue-pale);
+  padding-bottom: 10px;
+  margin: 0 0 20px;
+  line-height: 1.3;
+}
+
+.block-module-doc h2,
+.block-doc-comment h2,
+.block-doc-comment h2,
+.block-doc-comment h2 {
+  font-size: 1.35em;
+  font-weight: 600;
+  color: var(--blue);
+  margin: 24px 0 14px;
+  line-height: 1.4;
+}
+
+.block-module-doc h3,
+.block-doc-comment h3,
+.block-doc-comment h3,
+.block-doc-comment h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--text);
+  margin: 18px 0 10px;
+}
+
+.block-module-doc h4,
+.block-doc-comment h4,
+.block-doc-comment h4,
+.block-doc-comment h4 {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 14px 0 8px;
+}
+
+.block-module-doc p,
+.block-doc-comment p,
+.block-doc-comment p,
+.block-doc-comment p {
+  margin: 0 0 12px;
+}
+
+/* Remove bottom margin from the last child to keep padding visually equal */
+.block-module-doc>*:last-child,
+.block-doc-comment>*:last-child,
+.block-doc-comment>*:last-child,
+.block-doc-comment>*:last-child {
+  margin-bottom: 0;
+}
+
+/* Remove top margin from the first child to keep padding visually equal */
+.block-module-doc>*:first-child,
+.block-doc-comment>*:first-child,
+.block-doc-comment>*:first-child,
+.block-doc-comment>*:first-child {
+  margin-top: 0;
+}
+
+.block-module-doc strong,
+.block-doc-comment strong,
+.block-doc-comment strong,
+.block-doc-comment strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.block-module-doc em,
+.block-doc-comment em,
+.block-doc-comment em,
+.block-doc-comment em {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.block-module-doc ul,
+.block-module-doc ol,
+.block-doc-comment ul,
+.block-doc-comment ol,
+.block-doc-comment ul,
+.block-doc-comment ol,
+.block-doc-comment ul,
+.block-doc-comment ol {
+  margin: 8px 0 14px 22px;
+}
+
+.block-module-doc li,
+.block-doc-comment li,
+.block-doc-comment li,
+.block-doc-comment li {
+  margin-bottom: 5px;
+}
+
+.block-module-doc li p,
+.block-doc-comment li p,
+.block-doc-comment li p,
+.block-doc-comment li p {
+  margin: 0;
+}
+
+/* Inline code */
+.block-module-doc code,
+.block-doc-comment code,
+.block-doc-comment code,
+.block-doc-comment code {
+  font-family: var(--font-code);
+  font-size: .84em;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--blue-dark);
+}
+
+/* Code fences */
+.block-module-doc pre,
+.block-doc-comment pre,
+.block-doc-comment pre,
+.block-doc-comment pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.7;
+  tab-size: 2;
+}
+
+.block-module-doc pre code,
+.block-doc-comment pre code,
+.block-doc-comment pre code,
+.block-doc-comment pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font-size: inherit;
+}
+
+/* Tables */
+.block-module-doc table,
+.block-doc-comment table,
+.block-doc-comment table,
+.block-doc-comment table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.block-module-doc th,
+.block-doc-comment th,
+.block-doc-comment th,
+.block-doc-comment th {
+  background: var(--surface-alt);
+  color: var(--blue-dark);
+  font-weight: 600;
+  padding: 8px 14px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+
+.block-module-doc td,
+.block-doc-comment td,
+.block-doc-comment td,
+.block-doc-comment td {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.block-module-doc tr:nth-child(even) td,
+.block-doc-comment tr:nth-child(even) td,
+.block-doc-comment tr:nth-child(even) td,
+.block-doc-comment tr:nth-child(even) td {
+  background: #f0f5fd;
+}
+
+/* Blockquotes */
+.block-module-doc blockquote,
+.block-doc-comment blockquote,
+.block-doc-comment blockquote,
+.block-doc-comment blockquote {
+  border-left: 3px solid var(--blue-dim);
+  padding-left: 16px;
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.block-module-doc hr,
+.block-doc-comment hr,
+.block-doc-comment hr,
+.block-doc-comment hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+
+.block-module-doc a,
+.block-doc-comment a,
+.block-doc-comment a,
+.block-doc-comment a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.block-module-doc a:hover,
+.block-doc-comment a:hover,
+.block-doc-comment a:hover,
+.block-doc-comment a:hover {
+  text-decoration: underline;
+}
+
+/* ================================================================
+   Code Blocks
+   ================================================================ */
+.block-code {
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.block-code-header {
+  background: var(--surface-alt);
+  padding: 7px 16px;
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.block-code-header::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue-light);
+  opacity: .7;
+}
+
+.lean-source {
+  background: var(--code-bg);
+  margin: 0;
+  padding: 18px 20px;
+  font-family: var(--font-code);
+  font-size: 13.5px;
+  line-height: 1.7;
+  white-space: pre;
+  overflow-x: auto;
+  tab-size: 2;
+  color: var(--text);
+}
+
+/* ================================================================
+   Syntax Highlighting
+   ================================================================ */
+.hl-keyword {
+  color: var(--hl-keyword);
+  font-weight: 600;
+}
+
+.hl-tactic {
+  color: var(--hl-tactic);
+}
+
+.hl-type {
+  color: var(--hl-type);
+}
+
+.hl-string {
+  color: var(--hl-string);
+}
+
+.hl-number {
+  color: var(--hl-number);
+}
+
+.hl-comment {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+
+.hl-op {
+  color: var(--hl-op);
+}
+
+/* ================================================================
+   Mermaid Blocks
+   ================================================================ */
+.block-mermaid {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  overflow-y: visible;
+  box-shadow: var(--shadow-sm);
+}
+
+.block-mermaid svg {
+  height: auto;
+}
+
+.block-mermaid .error {
+  color: #c00;
+  padding: 1em;
+  border-radius: 4px;
+  text-align: left;
+}
+
+/* ================================================================
+   Graphviz (DOT) Blocks
+   ================================================================ */
+.block-graphviz {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  overflow-y: visible;
+  box-shadow: var(--shadow-sm);
+}
+
+.block-graphviz svg {
+  height: auto;
+}
+
+.block-graphviz .error {
+  color: #c00;
+  padding: 1em;
+  border-radius: 4px;
+  text-align: left;
+}
+
+/* ================================================================
+   MathJax
+   ================================================================ */
+mjx-container {
+  color: inherit !important;
+}
+
+mjx-container[display="true"] {
+  display: block !important;
+  overflow: visible !important;
+  margin: 0 !important;
+  max-width: 100%;
+  font-size: 1.15em;
+}
+
+.mjx-display-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 20px 0;
+  padding: 4px 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--blue-dim) transparent;
+}
+
+.mjx-display-wrap::-webkit-scrollbar {
+  height: 4px;
+}
+
+.mjx-display-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mjx-display-wrap::-webkit-scrollbar-thumb {
+  background: var(--blue-dim);
+  border-radius: 2px;
+}
+
+/* Heading scroll offset */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  scroll-margin-top: 72px;
+}
+
+/* ================================================================
+   Scrollbar
+   ================================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--blue-dim);
+  border-radius: 3px;
+}
+
+/* ================================================================
+   Lean LSP Output (#eval / proof status)
+   ================================================================ */
+.lean-output {
+  border-top: 1px solid var(--border);
+  padding: 10px 10px 10px 22px;
+  background: rgba(0, 0, 0, .02);
+  position: relative;
+}
+
+.lean-output::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--blue);
+}
+
+.output-label {
+  display: block;
+  font-size: .78em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.lean-output pre {
+  margin: 0;
+  font-family: var(--font-code);
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+  </style>
+</head>
+
+<body>
+  <script type="text/x-lean-source" id="lean-source">namespace CL8E8TQC.Introduction.Overview
+
+/-!
+# It from 8-Bit: Standard Model Parameters, Gauge Unification, and Λ>0 de Sitter Cosmology from E8 Noncommutative Geometry, with Mathematical Foundations for FTQC and Quantum Deep Gaussian Processes
+
+## Abstract
+
+This theory is founded on the trinitarian isomorphism "Information = Algebra = Geometry": $\text{GF}(2)^8 \cong \text{Cl}(8) \cong \Gamma_{E8}$, realizing "It from 8-Bit" as a chain of mathematical theorems. Starting from $\text{GF}(2)^8$ (the 8-bit integer structure), it constructs a unified theory that derives spacetime, the four forces, three generations of matter, gravity (the Einstein–Hilbert action), and the cosmological constant ($\Lambda > 0$ de Sitter spacetime) without adjustable parameters, via Clifford algebra Cl(8), the E8 lattice, and Connes' noncommutative geometry (NCG).
+
+All computations in the theory are carried out using only discrete integer arithmetic (the Forbidden Float principle), with no matrix representations whatsoever (the Matrix-Free principle). This discreteness ensures that theoretical values are uniquely determined as exact rational numbers, with no adjustable parameters and no approximation errors — any residual discrepancy with observational data originates solely from the measurement precision on the observational side. Matching results with Standard Model parameters are: mass hierarchy $a_2 = 9584/245$ (within observational error, 0.00008%), vacuum correction coefficient $\Delta b_{vac} = 62/45$ simultaneously determining the top/Higgs mass ratio (0.07%) and gauge coupling unification without supersymmetry (0.02%, three forces converging to a single point). Furthermore, the cosmological constant $\Omega_\Lambda = 27/4\pi^2 \approx 0.684$ is derived (the integer 27 in the numerator is the sole contribution from E8 theory, Forbidden Float compliant; the denominator $4\pi^2$ arises from the GR/NCG observational interpretation framework — see `_09_dSCFT` §3.9 for details), agreeing with the Planck 2018 observed value within $1\sigma$.  All derivations are mechanically verified via Lean 4's `native_decide`.
+
+From the same Cl(8) algebraic structure, quantum nonlocality is formally proved (UNSAT proof of the KS theorem, CHSH violation reaching the Tsirelson bound). On this quantum computation foundation, the Cl(8) geometric product algebraically unifies fault-tolerant quantum computation (FTQC), Gaussian processes (GP), and neural networks (NN), establishing the mathematical foundations for next-generation quantum machine learning. A formal proof that GoldenGate Quantum Deep GP is BQP-complete yields $O(n)$ exact GP and the isomorphism Quantum Deep GP ≡ TQC (layers = circuit depth).
+
+## Derivation Structure
+
+$$\text{GF}(2)^8
+  \xrightarrow{\text{Trinitarian}}
+  \text{Cl(8) / E8}$$
+
+Physics branching (two-lens parallel structure):
+
+$$\text{Cl(8)/E8}
+  \xrightarrow{\text{E8Dirac}}
+  \begin{cases}
+    \textbf{Lens 1:}\; \text{SpectralTriple} \to D_+^2 = 9920 \\[8pt]
+    \textbf{Lens 2:}\; \text{E8Branching} \to
+    \begin{cases}
+      \text{Route A} \to \text{Time} \\
+      \text{Route B} \to \text{Space} \\
+      \text{Route C} \to SU(3){\times}SU(2){\times}U(1) \\
+      \text{Route D} \to \text{3 Generations}
+    \end{cases}
+  \end{cases}$$
+
+$$\left.\begin{array}{l}
+  \text{Route A} \to \text{Time} \\
+  \text{Route B} \to \text{Space}
+\end{array}\right\}
+  \;\xrightarrow{\text{Spacetime emergence}}\;
+  \text{Gravity (General Relativity)}$$
+
+$$\left.\begin{array}{l}
+  \text{Lens 1: SpectralTriple} \\
+  \text{Lens 2: E8Branching}
+\end{array}\right\}
+  \;\xrightarrow[\text{Confluence of both lenses}]{a_0,\; a_2,\; a_4}\;
+  \begin{cases}
+    \text{Standard Model (0.02\% precision)} \\
+    \Omega_\Lambda = 27/4\pi^2 \approx 0.684
+  \end{cases}$$
+
+Quantum nonlocality:
+$$\text{Cl(8)/E8}
+  \xrightarrow{\text{BellSAT}}
+  \text{KS Theorem (UNSAT)} + \text{CHSH Violation}$$
+
+Quantum machine learning branch (diverges directly from `_01_TQC`):
+$$\text{Cl(8)/E8}
+  \xrightarrow{\text{FTQC↔GP duality}}
+  \underbrace{O(n)\text{ Exact GP}}_{\text{\_20}}$$
+
+$$\xrightarrow{\text{Deepening}}
+  \underbrace{\text{Quantum Deep GP}}_{\text{\_21}}$$
+
+$$\xrightarrow{\text{BO integration}}
+  \underbrace{\text{Exact Deep BO}}_{\text{\_22}}$$
+
+$$\boxed{\text{Quantum Deep GP} \equiv \text{TQC} \quad (\text{GoldenGate BQP-completeness theorem})}$$
+
+> "From the integer structure of 8 bits, the entire universe and the computational foundation of the intelligence that comprehends it are derived."
+
+```graphviz
+digraph TheoryArchitecture {
+    rankdir=TB;
+    bgcolor="transparent";
+    fontname="Helvetica";
+    node [shape=box, style="filled,rounded", fontname="Helvetica", fontsize=10, margin="0.3,0.15"];
+    edge [fontname="Helvetica", fontsize=9, color="#64748B", penwidth=1.5];
+    newrank=true;
+
+    // ── Algebraic Foundations (Cobalt Blue) ──────────────────────
+    GF2  [label="GF(2)⁸ = BitVec 8", fillcolor="#DBEAFE", color="#3B82F6", fontcolor="#1E3A5F", penwidth=2];
+    Cl8  [label="Cl(8) = 256-dim Clifford Algebra", fillcolor="#DBEAFE", color="#3B82F6", fontcolor="#1E3A5F", penwidth=2];
+
+    GF2 -> Cl8 [label="Trinitarian Isomorphism"];
+
+    // ── Physics Branch (Emerald) ─────────────────────────────────
+    E8   [label="E8Dirac\n(E8 algebraic structure: shared foundation)\nh=30, |ρ|²=620, 240 roots", fillcolor="#D1FAE5", color="#10B981", fontcolor="#064E3B", penwidth=2];
+    ST   [label="SpectralTriple\n[Lens 1: Constructive operator implementation]\nD²₊=9920", fillcolor="#D1FAE5", color="#10B981", fontcolor="#064E3B", penwidth=2];
+    OV   [label="E8Branching/Overview\n[Lens 2: Physical interpretation]\nShared E8 coordinate infrastructure", fillcolor="#D1FAE5", color="#10B981", fontcolor="#064E3B", penwidth=2];
+    RA   [label="Route A: Time\nh=30, Coxeter", fillcolor="#D1FAE5", color="#10B981", fontcolor="#064E3B", penwidth=2];
+    RB   [label="Route B: Space\nN_T=84, Triality", fillcolor="#D1FAE5", color="#10B981", fontcolor="#064E3B", penwidth=2];
+    RC   [label="Route C: Force\nD4→G_SM", fillcolor="#D1FAE5", color="#10B981", fontcolor="#064E3B", penwidth=2];
+    RD   [label="Route D: Matter\nE6×SU(3), 3 gen.", fillcolor="#D1FAE5", color="#10B981", fontcolor="#064E3B", penwidth=2];
+    GR   [label="Gravity\n(Route A+B → Spacetime)\na₂ → Einstein–Hilbert", fillcolor="#A7F3D0", color="#059669", fontcolor="#064E3B", penwidth=2];
+    HK   [label="Heat Kernel Coefficients\n(Confluence of both lenses)\na₀, a₂, a₄", fillcolor="#D1FAE5", color="#10B981", fontcolor="#064E3B", penwidth=2];
+    SM   [label="Standard Model\n0.00008%–0.07% precision", fillcolor="#A7F3D0", color="#059669", fontcolor="#064E3B", penwidth=2];
+    CC   [label="Cosmological Constant\nΩ_Λ = 27/4π² ≈ 0.684", fillcolor="#A7F3D0", color="#059669", fontcolor="#064E3B", penwidth=2];
+
+    Cl8 -> E8;
+    E8  -> ST [label="Lens 1"];
+    E8  -> OV [label="Lens 2"];
+    OV  -> RA;
+    OV  -> RB;
+    OV  -> RC;
+    OV  -> RD;
+    OV  -> GR;
+    ST  -> HK;
+    GR  -> HK [label="import junction"];
+    HK  -> SM;
+    HK  -> CC;
+
+    // ── Quantum Nonlocality (Amber) ──────────────────────────────
+    BS   [label="BellSAT", fillcolor="#FEF3C7", color="#F59E0B", fontcolor="#78350F", penwidth=2];
+    KS   [label="KS Theorem (UNSAT)\n+ CHSH Violation S²=65536", fillcolor="#FDE68A", color="#D97706", fontcolor="#78350F", penwidth=2];
+
+    Cl8 -> BS;
+    BS  -> KS;
+
+    // ── TQC / Quantum Computation (Rose) ─────────────────────────
+    TQC  [label="TQC = Geometric Product\nXOR + swap_count", fillcolor="#FFE4E6", color="#F43F5E", fontcolor="#881337", penwidth=2];
+    BQP  [label="BQP-Completeness\nGoldenGate, Jones", fillcolor="#FECDD3", color="#E11D48", fontcolor="#881337", penwidth=2];
+
+    Cl8 -> TQC;
+    TQC -> BQP;
+
+    // ── Quantum Machine Learning (Violet) ────────────────────────
+    GP   [label="O(n) Exact GP\nRank≤8, Woodbury+Bareiss", fillcolor="#EDE9FE", color="#8B5CF6", fontcolor="#3B0764", penwidth=2];
+    DGP  [label="Quantum Deep GP\nH84 Path Integral", fillcolor="#EDE9FE", color="#8B5CF6", fontcolor="#3B0764", penwidth=2];
+    DBO  [label="Exact Deep BO\nRepresentation Learning + Exact Uncertainty", fillcolor="#DDD6FE", color="#7C3AED", fontcolor="#3B0764", penwidth=2];
+
+    Cl8 -> GP;
+    GP  -> DGP;
+    DGP -> DBO;
+
+    // ── Layout Control ───────────────────────────────────────────
+    {rank=same; E8; BS; TQC; GP}
+    {rank=same; SM; CC}
+}
+```
+
+**Theory structure = Code `import` structure**: The above graph not only shows the theoretical dependency relations but **strictly coincides** with the Lean `import` chains between files. Specifically:
+
+- The branching from `E8Dirac` to `SpectralTriple` (Lens 1) and `E8Branching/Overview` (Lens 2) corresponds to both modules `import`ing `_03_E8Dirac` without depending on each other
+- The parallel branching of Routes A/B/C/D from `E8Branching/Overview` corresponds to each Route file `import`ing only `_00_Overview`
+- The structure whereby `Heat Kernel Coefficients` is the "confluence of both lenses" corresponds to `_07_HeatKernel` `import`ing both `_05_SpectralTriple` and `_06_E8Branching`
+
+This correspondence is a design principle; see `_00_LiterateCoding.lean`, section "Theory Structure = Code Dependency Structure," for details.
+
+**A particularly important structural correspondence**:
+
+- The structure in which `_05_Gravity` is the sole import junction to `_07_HeatKernel`
+  reflects the theoretical claim that "gravity (the existence of spacetime) is a prerequisite for heat kernel coefficient derivation."
+
+## Tags
+
+e8-lattice, noncommutative-geometry, standard-model, gauge-unification,
+cosmological-constant, spectral-action, ftqc, quantum-deep-gp, literate-coding
+
+---
+
+# §1. Introduction
+
+## 1.1 Open Problems in Theoretical Physics Addressed by This Theory
+
+This theory provides parameter-free answers to long-standing open problems in theoretical physics, derived from the discrete algebraic structure of the E8 lattice. The following 3 categories and 9 problems constitute the scope of this theory.
+
+**Category I: Standard Model Parameter Problems** (verified in `_08_StandardModel`)
+
+| Problem | Content | Our Answer | Precision |
+|:---|:---|:---|:---|
+| I-1. Hierarchy problem | Why $m_H \ll M_{Pl}$ (16 orders of magnitude)? | $a_2 = 9584/245$ (Coxeter $h{-}1$ correction) | 0.00008% |
+| I-2. Mass ratio problem | What determines $m_t/m_H$? | $\Delta b_{vac} = 62/45$ (E8/E6 rank ratio) | 0.07% |
+| I-3. Gauge unification | Do the three forces unify at high energy? | β-function correction via $\Delta b_{vac} = 62/45$ yields single-point convergence without SUSY | 0.02% |
+
+**Category II: Cosmological Constant Problem** (answered in `_09_dSCFT/_00_CosmologicalConstant` §3.9)
+
+| Problem | Content | Our Answer |
+|:---|:---|:---|
+| II-1. Old CC | Why $\Lambda \ne M_{Pl}^4$ ($10^{120}$-fold discrepancy)? | Only 324 discrete effective degrees of freedom contribute; $M_{Pl}^4$ structurally does not appear (§3.9.1) |
+| II-2. New CC | Why $\Lambda > 0$? | $F_{\text{spinor}} > 0 \implies \Lambda > 0$ is a mathematical necessity (§3.9.2) |
+| II-3. Coincidence | Why $\rho_\Lambda \sim \rho_m$? | $\Omega_\Lambda = 27/(4\pi^2) \approx 0.684$ is $O(1)$; dark energy = Triality degrees of freedom 84 (§3.9.3) |
+
+**Category III: Foundational Challenges of Quantum Gravity** (verified in `_09_dSCFT/_02_dSEmergence` §4)
+
+| Problem | Content | Our Answer |
+|:---|:---|:---|
+| III-1. Continuum limit | Is the existence of lattice spacing $a \to 0$ guaranteed? | The discrete theory is fundamental; the continuum is an effective approximation (bypassed) |
+| III-2. Wick rotation | Definition of $t \to -i\tau$ in curved spacetime | Lorentzian signature derived directly from Krein-space decomposition |
+| III-3. Bulk reconstruction | Can the bulk be recovered from boundary data? | Spectral action $(a_0, a_2, a_4)$ determines bulk physics |
+
+Although these problems appear mutually independent, this theory demonstrates that they share a common algebraic origin — $\text{GF}(2)^8 \cong \text{Cl}(8) \cong \Gamma_{E8}$.
+
+## 1.2 The Necessity of a Discrete Starting Point
+
+Previous quantum gravity and unified field theories (superstring theory, loop quantum gravity, Connes NCG Standard Model) all take continuous manifolds as their starting point and rely on adjustable parameters and approximation methods. By contrast, this theory adopts the hypothesis that "the fundamental structure of nature is discrete and algebraic, and continuous spacetime is its emergent consequence." The starting point is $\text{GF}(2)^8$ — the finite field of 8-bit integers — and the trinitarian isomorphism that supports the entire theory consists of: this 256-element structure being isomorphic to the geometric product of Clifford algebra Cl(8), and the 240 roots of the E8 lattice generating all of Cl(8) ($\langle\text{E8}\rangle = \text{Cl}(8)$).
+
+## 1.3 Derivation of Physics via the Two-Lens Parallel Structure
+
+Once the algebraic structure of E8 (Coxeter number $h=30$, Weyl vector norm $|\rho|^2 = 620$, 240 roots) is established in `_03_E8Dirac`, two independent lenses branch in parallel from this point. **Lens 1** (`_05_SpectralTriple`) sums over E8 roots to construct the Dirac operator and obtains the spectral invariant $D_+^2 = 9920$. **Lens 2** (`_06_E8Branching`) assigns physical meaning to the same E8 invariants, branching them into time (Route A: Coxeter element $w^{30} = \text{id}$), space (Route B: Jones index = 2), force (Route C: $D4 \to SU(3) \times SU(2) \times U(1)$), and matter (Route D: $E8 \to E6 \times SU(3)$, 3 generations). The two lenses converge in `_07_HeatKernel` as heat kernel coefficients $a_0, a_2, a_4$, producing physical constants via Connes' spectral action principle. This parallel structure eliminates circular reasoning: different lenses are applied to common mathematical facts, and physical quantities are determined only at the confluence point.
+
+## 1.4 Emergence of Gravity and the Cosmological Constant
+
+The unification of Route A (time) and Route B (space) gives rise to (1+3)-dimensional spacetime, and the $a_2 \Lambda^2$ term of the spectral action yields the Einstein–Hilbert action. $a_2 = 9584/245$ is uniquely determined by the Coxeter numbers of E8 and E6, reproducing the Higgs/Planck mass hierarchy (16 orders of magnitude) without adjustable parameters. Furthermore, from $a_0 = 27/20$ (the ratio of Triality degrees of freedom 84 to the E8 root count 240), the cosmological constant $\Omega_\Lambda = 27/4\pi^2 \approx 0.684$ is derived, and as a consequence of the spinor factor $F_{\text{spinor}} > 0$, $\Lambda > 0$ (de Sitter spacetime) becomes a mathematical necessity.
+
+## 1.5 Discrete Exactness: Zero Theoretical Uncertainty
+
+In the computational realization of the theory, two design principles are strictly enforced. First, the **Forbidden Float principle**: all operations are completed using only integer XOR, popcount, and sign determination, completely eliminating floating-point arithmetic. Second, the **Matrix-Free principle**: 256×256 matrix operations are reduced to 10–20 CPU instructions of bitwise operations, achieving $O(1)$ computational complexity. The consequence of this discreteness is essential — theoretical values are uniquely determined as exact rational numbers (e.g., $9584/245$, $62/45$, $27/20$), with no adjustable parameters, rounding errors, or truncation errors. Therefore, residuals from observational data originate solely from the measurement precision on the observational side, not from the theory. This property is fundamentally different from systematic uncertainties accompanying perturbative expansions, renormalization, and numerical integration in continuous-field quantum theory.
+
+## 1.6 Extension to Quantum Computation and Quantum Machine Learning
+
+From the same Cl(8) algebraic structure, formal proofs of quantum nonlocality are obtained (KS theorem: UNSAT over 86 variables and 121 contexts; CHSH violation: reaching the Tsirelson bound). On this quantum computation foundation, the Cl(8) geometric product is shown to be triply interpretable — as the braiding operation in FTQC, as the covariance function of Gaussian processes, and as the feature map of neural networks — thereby establishing the mathematical foundations for next-generation quantum machine learning. The BQP-completeness theorem for GoldenGate Quantum Deep GP enables $O(n)$ exact Deep GP inference that completely eliminates variational inference through discretization onto H(8,4) codewords, building both physical constant derivation and machine learning inference on the same algebraic mechanism.
+
+# §2. Relation to Prior Work
+
+| Approach | Starting point | Adjustable parameters | Formal verification | Computational complexity |
+|:---|:---|:---|:---|:---|
+| **This theory (CL8E8TQC)** | $\text{GF}(2)^8$ (discrete) | **0** | Lean 4 / `native_decide` | $O(1)$ (XOR + sign) |
+| SM + GR | Continuous manifold | 19+ | None | — |
+| Connes NCG SM | Spectral triple (continuous) | Dirac mass matrix | None | — |
+| Superstring / M-theory | 10/11-dim continuous manifold | Landscape problem ($10^{500}$) | None | — |
+| Loop quantum gravity | Spin networks (discrete) | None | Partial | — |
+| Conventional Deep GP | Continuous kernel | Many hyperparameters | None | $O(Ln^3)$ |
+| **This theory's Deep GP** | H(8,4) codewords (discrete) | **0** (determined by code structure) | Lean 4 implementation | **$O(Ln)$** (Woodbury) |
+
+- Applies the spectral action principle of Connes & Chamseddine (1996, 1997) to a discrete finite system, directly deriving physical quantities without going through the continuum limit. Continuous spacetime is regarded as an effective-theory approximation.
+- Constructively verifies Parthasarathy's (1972) Dirac operator squared formula $D^2 = -\Omega_\mathfrak{g} + \Omega_\mathfrak{k} + c$ on the finite discrete system of E8, rigorously deriving $D_+^2 = 9920$.
+- Mechanically proves the KS uncolorability construction of Cortez–Morales–Reyes (2025) using the `bv_decide` tactic, providing formal grounds for quantum contextuality (`_02_BellSAT` module).
+
+# §3. Contributions of This Paper
+
+### Algebraic Foundations (`_01_TQC`, `_02_BellSAT`, `_03_E8Dirac`)
+
+- **Constructive proof of the trinitarian isomorphism**: $\text{GF}(2)^8 \cong \text{Cl}(8) \cong \Gamma_{E8}$ mechanically verified via `native_decide` (49 items)
+- **E8 generation theorem**: Proof that the 240 roots of E8 generate all of Cl(8) ($\langle\text{E8}\rangle_{240} = \text{Cl}(8)$)
+- **TQC universality**: Automatic satisfaction of MTC 7 axioms and BQP-completeness proof via GoldenGate $G = C^6$ (order 5)
+- **Formal proof of quantum nonlocality**: KS theorem (86 variables, 121 contexts, UNSAT via `bv_decide`) and CHSH violation ($S^2 = 65536 > 32768$, reaching the Tsirelson bound) mechanically proved
+
+### Physics Derivations (`_05_SpectralTriple`, `_06_E8Branching`, `_07_HeatKernel`, `_08_StandardModel`)
+
+- **Exact computation of the Dirac operator**: Constructive proof of $D_+^2 = 9920$ (perfect agreement with the Parthasarathy formula)
+- **Emergence of spacetime**: Derivation from E8 of time (Route A: Coxeter element $w^{30} = \text{id}$) and space (Route B: Jones index = 2)
+- **Unification of the four forces**: Derivation of $SU(3) \times SU(2) \times U(1)$ from Route C; spectral action unifies all forces including gravity
+- **Three-generation fermions**: 16-dimensional spinor = 1 generation derived from Route D's $E8 \to E6 \times SU(3)$ branching
+- **Parameter-free derivation of physical constants**: Standard Model parameters derived at 0.00008%–0.07% precision ($a_2 = 9584/245$, $\Delta b_{vac} = 62/45$)
+- **Exact derivation of heat kernel coefficients**: $a_0 = 27/20$, $a_2 = 9584/245$, $a_4 = 62/45$ derived from E8 invariants
+
+### Cosmology (`_09_dSCFT`)
+
+- **Positive cosmological constant**: Proof that $\Lambda > 0$ is a mathematical necessity from the E8 structure
+- **Algebraic inflation**: Exact derivation of $V(t) = 3^t$ (Triality + Verlinde formula)
+- **Three major challenges of quantum gravity**: Unified resolution of continuum limit bypass (discrete theory is fundamental), Wick rotation, and bulk reconstruction
+- **Derivation of Lorentz invariance**: Signature $(-,+,+,+)$ → SO(3,1) derived from Krein decomposition
+
+### Next-Generation Quantum Machine Learning (`_20_FTQC_GP_ML`, `_21_QuantumDeepGP`, `_22_ExactDeepBayesianOptimization`)
+
+- **FTQC↔GP↔NN triple duality**: Proof that the same Cl(8) geometric product algebraically unifies FTQC, GP, and NN
+- **$O(n)$ exact GP**: GP inference improved from $O(n^3) \to O(n)$ via the Woodbury identity
+- **Complete elimination of variational inference**: Deep GP marginalization integral reduced to a finite sum of 16 terms via discretization onto H84 codewords
+- **BQP-completeness theorem**: GoldenGate Deep GP inference ∈ BQP-complete proved in 3 stages
+- **Quantum Deep GP ≡ TQC isomorphism**: GP layers = TQC circuit depth (Fusion + Braiding correspondence)
+- **World-first Exact Deep BO**: Simultaneous realization of representation learning (deep kernel) and exact uncertainty
+- **Foundation Gram Matrix**: Pre-trained knowledge compressed into a $16 \times 16$ integer matrix, enabling transfer learning without catastrophic forgetting
+- **GP as a strict superset of NN**: Quantum Deep GP dominates in 12 out of 13 dimensions (quantitative comparison)
+- **Active Learning**: AL search efficiency improved by a factor of 1,173× (vs. random, empirically measured)
+
+### Overall
+
+- **Total modules**: 50 files, over 550 `native_decide` theorems, 644 tests all passing (100%)
+
+---
+
+# §4. Module Structure
+
+| Module | File count | Content |
+|:---|:---|:---|
+| `_00_Introduction` | 2 | Literate Coding, constructive verification — methodological declaration |
+| `_01_TQC` | 5 | Cl(8)/H84/Pin/Spin/QuantumState/TQC universality/FTQC — algebraic foundations |
+| `_02_BellSAT` | 3 | KS theorem SAT proof, CHSH formal proof, KS theory exposition |
+| `_03_E8Dirac` | 5 | Lie algebra, A4 embedding, Parthasarathy, positive roots |
+| `_04_CoxeterAnalysis` | 3 | Coxeter system, Dirac dynamics, orbit boundary/bulk classification |
+| `_05_SpectralTriple` | 4 | Connes NCG, $D_+$, $D_+^2=9920$, commutators |
+| `_06_E8Branching` | 6 | Routes A/B/C/D, Gravity — E8 quadruple branching |
+| `_07_HeatKernel` | 2 | Derivation of $a_0, a_2, a_4$ |
+| `_08_StandardModel` | 2 | Matching with Standard Model parameters |
+| `_09_dSCFT` | 3 | Cosmological constant, E8 TEE formula, strong subadditivity, dS emergence, ER=EPR |
+| `_10_E8CA` | 3 | QCA lattice execution |
+| `_20_FTQC_GP_ML` | 6 | $O(n)$ exact GP, kernel catalog, drug discovery applications, Multi-E8 generalization, active learning, FTQC–GP–NN triple duality |
+| **`_21_QuantumDeepGP`** | **5** | **Lazy Training diagnostics, Deep GP theory, discrete path integral, quantum inference (BQP-completeness theorem), layer = quantum depth correspondence** |
+| **`_22_ExactDeepBayesianOptimization`** | **2** | **Exact Deep BO (simultaneous representation learning + exact uncertainty), Deep NN vs Quantum Deep GP comprehensive comparison** |
+
+**Total**: 50 files
+
+## Module Dependency Structure
+
+```
+_01_TQC (Algebraic Foundations)
+  ├─ _02_BellSAT (Quantum Nonlocality)
+  ├─ _03_E8Dirac ─┬─→ _05_SpectralTriple [Lens 1: Operator Construction] ──┐
+  │               │                                                         │
+  │               └─→ _06_E8Branching/_00_Overview [Lens 2: Physical Interpretation]
+  │                     ├─ _01_RouteA (Time: Coxeter)                       │
+  │                     ├─ _02_RouteB (Space: Triality)                     │
+  │                     ├─ _03_RouteC (Force: D4)                           │
+  │                     ├─ _04_RouteD (Matter: E6×SU(3))                    │
+  │                     └─ _05_Gravity ─────────────────────────────────────┤
+  │                                                                         ↓
+  │                                       _07_HeatKernel (Confluence of both lenses)
+  │                                             ├─→ _08_StandardModel
+  │                                             └─→ _09_dSCFT
+  ├─ _10_E8CA
+  └─ _20_FTQC_GP_ML (O(n) Exact GP)
+       └─ _21_QuantumDeepGP (Quantum Deep GP)
+            └─ _22_ExactDeepBayesianOptimization (Exact Deep BO)
+```
+
+> **Note on `_04_CoxeterAnalysis`**: Due to `native_decide` execution time (~170 seconds), it is currently excluded from the build (commented out in `CL8E8TQC.lean`).
+> The structural constants (`jonesIndex`, etc.) that `_09_dSCFT/_01_TEE.lean` depended on have been changed to inline definitions,
+> and the import to `_04_CoxeterAnalysis` has been removed.
+
+The text diagram above is visualized with GraphViz below (based on the actual `import` statements).
+Arrows indicate "dependent → dependency" (meaning the dependent uses the results of the dependency).
+
+```graphviz
+digraph ModuleDependency {
+    // ── Global Graph Settings ────────────────────────────────────
+    rankdir=TB;
+    bgcolor="transparent";
+    fontname="Helvetica";
+    node [shape=box, style="filled,rounded", fontname="Helvetica", fontsize=10, margin="0.3,0.2"];
+    edge [fontname="Helvetica", fontsize=9, color="#94A3B8", penwidth=1.5];
+
+    // ── Algebraic Foundations (Cobalt Blue: precision of Information=Algebra) ──
+    A00 [label="_01_TQC (5 files)\n①_01_Cl8E8H84\n②_02_PinSpin\n③_03_QuantumState\n④_04_TQC_Universality\n⑤_05_FTQC",
+         fillcolor="#DBEAFE", fontcolor="#1E3A5F", color="#3B82F6", penwidth=2];
+
+    // ── Quantum Nonlocality (Emerald: natural laws, physics) ─────
+    B01 [label="_02_BellSAT (3 files)\n①_00_CortezKS\n②_01_QuantumCHSH\n③_02_KSTheory",
+         fillcolor="#D1FAE5", fontcolor="#064E3B", color="#10B981", penwidth=2];
+
+    // ── E8 Dirac ─────────────────────────────────────────────────
+    C02 [label="_03_E8Dirac (5 files)\n①_00_LieAlgebra\n②_01_A4Embedding\n③_02_DimensionFormula\n④_03_Parthasarathy\n⑤_04_PositiveRoots",
+         fillcolor="#D1FAE5", fontcolor="#064E3B", color="#10B981", penwidth=2];
+
+    // ── Spectral Triple ─────────────────────────────────────────
+    D04 [label="_05_SpectralTriple (4 files)\n①_00_ConnesNCG\n②_01_DiracOp\n③_02_DiracSquared\n④_03_Commutator",
+         fillcolor="#D1FAE5", fontcolor="#064E3B", color="#10B981", penwidth=2];
+
+    // ── E8 Quadruple Branching ──────────────────────────────────
+    E05 [label="_06_E8Branching (6 files)\n①_00_Overview\n②_01_RouteA_Time\n③_02_RouteB_Space\n④_03_RouteC_Force\n⑤_04_RouteD_Matter\n⑥_05_Gravity",
+         fillcolor="#D1FAE5", fontcolor="#064E3B", color="#10B981", penwidth=2];
+
+    // ── Heat Kernel ─────────────────────────────────────────────
+    F06 [label="_07_HeatKernel (2 files)\n①_00_Framework\n②_01_Derivation",
+         fillcolor="#D1FAE5", fontcolor="#064E3B", color="#10B981", penwidth=2];
+
+    // ── Standard Model ──────────────────────────────────────────
+    G07 [label="_08_StandardModel (2 files)\n①_00_BoundaryAxioms\n②_01_Verification",
+         fillcolor="#D1FAE5", fontcolor="#064E3B", color="#10B981", penwidth=2];
+
+    // ── dS/CFT ──────────────────────────────────────────────────
+    H08 [label="_09_dSCFT (3 files)\n①_00_CosmologicalConstant\n②_01_TEE\n③_02_dSEmergence",
+         fillcolor="#D1FAE5", fontcolor="#064E3B", color="#10B981", penwidth=2];
+
+    // ── E8 Quantum Cellular Automaton ───────────────────────────
+    I09 [label="_10_E8CA (3 files)\n①_00_E8CellularAutomaton\n②_01_DiracPropagator\n③_02_GaugeField",
+         fillcolor="#D1FAE5", fontcolor="#064E3B", color="#10B981", penwidth=2];
+
+    // ── Coxeter Analysis (excluded from build) ──────────────────
+    J03 [label="_04_CoxeterAnalysis (3 files)\n①_01_CoxeterSystem\n②_02_DiracDynamics\n③_03_OrbitAnalysis\n※ Excluded from build",
+         fillcolor="#F1F5F9", fontcolor="#94A3B8", color="#CBD5E1", penwidth=2, style="filled,rounded,dashed"];
+
+    // ── O(n) Exact GP (Violet: intelligence, quantum computation) ──
+    K20 [label="_20_FTQC_GP_ML (6 files)\n①_00_LinearTimeGP\n②_01_KernelCatalog\n③_02_DrugDiscovery_GP\n④_03_MultiE8_GP\n⑤_04_ActiveLearning\n⑥_05_FTQC_GP_NN_Duality",
+         fillcolor="#EDE9FE", fontcolor="#3B0764", color="#8B5CF6", penwidth=2];
+
+    // ── Quantum Deep GP ─────────────────────────────────────────
+    L21 [label="_21_QuantumDeepGP (5 files)\n①_00_LazyTraining\n②_01_DeepGP_Theory\n③_02_DiscretePathIntegral\n④_03_QuantumInference\n⑤_04_LayerDepthCorrespondence",
+         fillcolor="#EDE9FE", fontcolor="#3B0764", color="#8B5CF6", penwidth=2];
+
+    // ── Exact Deep BO ───────────────────────────────────────────
+    M22 [label="_22_ExactDeepBayesianOptimization (2 files)\n①_00_ExactDeepBO\n②_01_NN_vs_GP",
+         fillcolor="#EDE9FE", fontcolor="#3B0764", color="#8B5CF6", penwidth=2];
+
+    // ── Direct Dependencies (based on actual imports) ───────────
+    A00 -> B01 [label="QuantumState"];
+    A00 -> C02 [label="Cl8E8H84"];
+    A00 -> K20 [label="QuantumState"];
+
+    C02 -> D04 [label="PositiveRoots\n[Lens 1]"];
+    C02 -> E05 [label="PositiveRoots\n[Lens 2]"];
+    D04 -> I09 [label="DiracSquared"];
+
+    E05 -> F06 [label="Gravity"];
+    D04 -> F06 [label="DiracSquared", fontcolor="#059669", color="#10B981"];
+    F06 -> G07 [label="Derivation"];
+    F06 -> H08 [label="Derivation"];
+
+    K20 -> L21 [label="ActiveLearning"];
+    K20 -> M22 [label="MultiE8_GP"];
+    L21 -> M22 [label="DiscretePathIntegral"];
+
+    // ── _21 → _01_TQC dependency ────────────────────────────────
+    A00 -> L21 [label="TQC_Universality", fontcolor="#B45309", color="#F59E0B", style=dashed, penwidth=1.5];
+
+    // ── Build-excluded dependencies (dashed arrows) ─────────────
+    D04 -> J03 [style=dashed, label="DiracSquared", fontcolor="#94A3B8", color="#CBD5E1"];
+    E05 -> J03 [style=dashed, label="RouteA_Time", fontcolor="#94A3B8", color="#CBD5E1"];
+}
+```
+
+> **Legend**:
+> - 🔵 Cobalt Blue (`foundation`): Algebraic foundations — precision of Information = Algebra
+> - 🟢 Emerald (`physics`): Physical theory — natural laws, spacetime, forces
+> - 🟣 Violet (`ml`): Quantum machine learning — intelligence, quantum computation
+> - ⬜ Light gray (`excluded`): Excluded from build (`native_decide` ~170 s, commented out)
+> - 🟡 Amber dashed: Cross-dependency from `_01_TQC` → `_21_QuantumDeepGP` (`_03_QuantumInference` imports `_04_TQC_Universality`)
+> - Solid arrows: Direct import dependencies (labels indicate main import targets)
+> - Dashed arrows: Dependencies on build-excluded modules
+
+---
+
+# §5. Content of Each Module
+
+Below, we introduce the content of each module according to the directory structure.
+
+## `_01_TQC` — Algebraic Foundations (5 files)
+
+$$\boxed{\text{GF}(2)^8 \;(\text{Information}) \;\cong\; \text{Cl}(8) \;(\text{Algebra}) \;\cong\; \Gamma_{E8} \;(\text{Geometry})}$$
+
+Constructively proves the trinitarian isomorphism from the 8-bit integer structure to Cl(8) and the E8 lattice.
+
+| File | Content |
+|:---|:---|
+| `_01_Cl8E8H84` | Trinitarian isomorphism, geometric product, generation hierarchy $\langle\text{E8}\rangle_{240} = \text{Cl}(8)$ |
+| `_02_PinSpin` | Discrete construction of Pin/Spin groups |
+| `_03_QuantumState` | Hilbert space $\mathbb{Z}^{256}$ and quantum states |
+| `_04_TQC_Universality` | MTC 7 axioms, BQP-completeness, GoldenGate $G=C^6$, algebraic realism |
+| `_05_FTQC` | FTQC 3-requirement satisfaction, Triality-QEC = FTQC argument, surface code comparison |
+
+| Key Result | Value |
+|:---|:---|
+| E8 root count | 240 |
+| H(8,4) codewords | 16 |
+| GoldenGate order | $G^5 = I$ |
+| Computational complexity | $O(1)$ (XOR + sign determination) |
+
+## `_02_BellSAT` — Formal Proof of Quantum Nonlocality (3 files)
+
+| File | Content |
+|:---|:---|
+| `_00_CortezKS` | Kochen–Specker theorem: UNSAT proof of 86-variable, 121-context SAT via `bv_decide` |
+| `_01_QuantumCHSH` | CHSH violation: $S^2 = 65536 > 32768 = 4K^2$ (reaching the Tsirelson bound) |
+| `_02_KSTheory` | Educational exposition of KS theory and `bv_decide` |
+
+## `_03_E8Dirac` — Lie Algebra and the Dirac Operator (5 files)
+
+| File | Content |
+|:---|:---|
+| `_00_LieAlgebra` | Discrete construction of the E8 Lie algebra |
+| `_01_A4Embedding` | Embedding of the A4 subalgebra |
+| `_02_Parthasarathy` | Constructive verification of the Parthasarathy formula |
+| `_03_DimensionFormula` | Dimension formula for E8 |
+| `_04_PositiveRoots` | Complete enumeration and verification of 120 positive roots |
+
+## `_04_CoxeterAnalysis` — Coxeter Analysis (3 files)
+
+Constructive analysis of Coxeter systems. Currently excluded from the build due to `native_decide` execution time (~170 seconds).
+
+## `_05_SpectralTriple` — Connes Spectral Triple (4 files)
+
+Implements Connes' noncommutative geometry (NCG) on the E8 lattice.
+
+| File | Content |
+|:---|:---|
+| `_00_ConnesNCG` | Discrete implementation of the NCG axiom system |
+| `_01_DiracOp` | Dirac operator $D_+ = \sum_{r \in \Phi^+} \gamma_r$ |
+| `_02_DiracSquared` | $D_+^2 = 9920$ (perfect agreement with Parthasarathy formula) |
+| `_03_Commutator` | Commutators $[D, e_i]$ (pure grade-2), metric $g_{ii} = 4(9920 - D_i^2)$ |
+
+## `_06_E8Branching` — E8 Quadruple Branching (6 files)
+
+The symmetry of E8 branches into four physical Routes.
+
+| File | Content |
+|:---|:---|
+| `_01_RouteA_Time` | **Emergence of time**: Coxeter element $w^{30} = \text{id}$ → modular flow |
+| `_02_RouteB_Space` | **Emergence of space**: Jones index = 2 + front/back 4D decomposition |
+| `_03_RouteC_Force` | **Unification of forces**: D4 → $SU(3) \times SU(2) \times U(1)$ |
+| `_04_RouteD_Matter` | **Matter**: E8 → E6×SU(3) $(27, \mathbf{3})$ → 3 generations |
+| `_05_Gravity` | **Gravity**: Spectral action $a_2 \Lambda^2$ term |
+| `_00_Overview` | Overview of the branching structure |
+
+## `_07_HeatKernel` — Derivation of Heat Kernel Coefficients (2 files)
+
+Derives the expansion coefficients of the spectral action from E8 invariants.
+
+| Coefficient | Value | Physical meaning |
+|:---|:---|:---|
+| $a_0$ | $27/20$ | Cosmological constant |
+| $a_2$ | $9584/245$ | Einstein–Hilbert action |
+| $a_4$ | $62/45$ | Yang–Mills action |
+
+## `_08_StandardModel` — Standard Model Parameter Matching (2 files)
+
+Matches theoretical predictions with PDG 2024 observational data.
+
+| Prediction | Theoretical value | Precision |
+|:---|:---|:---|
+| Mass hierarchy $\ln(M_{Pl}/m_H)$ | $a_2 = 9584/245 \approx 39.118$ | 0.00008% |
+| Top/Higgs mass ratio $m_t/m_H$ | $\Delta b_{vac} = 62/45 \approx 1.378$ | 0.07% |
+| Gauge coupling unification (no SUSY) | β-function correction via $\Delta b_{vac}$ → 3 forces converge | 0.02% |
+
+## `_09_dSCFT` — Cosmology and de Sitter Spacetime (3 files)
+
+| File | Content |
+|:---|:---|
+| `_00_CosmologicalConstant` | Mathematical necessity of $\Lambda > 0$, running cosmological constant |
+| `_01_TEE` | E8-version topological entanglement entropy, strong subadditivity |
+| `_02_dSEmergence` | Resolution of the 3 major quantum gravity challenges, algebraic inflation $V(t) = 3^t$, Krein → SO(3,1) |
+
+## `_10_E8CA` — QCA Lattice Execution (3 files)
+
+Quantum cellular automaton implementation on the E8 lattice.
+
+## `_20_FTQC_GP_ML` — $O(n)$ Exact GP (6 files)
+
+Linear-time exact Gaussian processes based on the duality between the Cl(8) geometric product and GP inference.
+
+| File | Content |
+|:---|:---|
+| `_00_LinearTimeGP` | $O(n)$ exact GP via Woodbury + Bareiss |
+| `_01_KernelCatalog` | Kernel catalog based on Bott periodicity |
+| `_02_DrugDiscovery_GP` | Drug discovery application (algebraic replacement of Tanimoto similarity) |
+| `_03_MultiE8_GP` | Arbitrary-dimension extension via $d = 8L$ Bott periodicity |
+| `_04_ActiveLearning` | Active learning (1,173× search efficiency improvement) |
+| `_05_FTQC_GP_NN_Duality` | FTQC↔GP↔NN triple duality |
+
+## `_21_QuantumDeepGP` — Quantum Deep GP (5 files)
+
+Exact Deep GP that completely eliminates variational inference. BQP-completeness proved as a theorem.
+
+| File | Content |
+|:---|:---|
+| `_00_LazyTraining` | Lazy Training diagnostics via NTK theory |
+| `_01_DeepGP_Theory` | Theory for breaking through $O(Ln^3) \to O(Ln)$ |
+| `_02_DiscretePathIntegral` | H84 discrete path integral (VI elimination) |
+| `_03_QuantumInference` | BQP-completeness theorem (3-stage proof) |
+| `_04_LayerDepthCorrespondence` | Quantum Deep GP ≡ TQC (layers = circuit depth) |
+
+## `_22_ExactDeepBayesianOptimization` — Exact Deep BO (2 files)
+
+| File | Content |
+|:---|:---|
+| `_00_ExactDeepBO` | Simultaneous realization of representation learning + exact uncertainty (world-first) |
+| `_01_NN_vs_GP` | Deep NN vs Quantum Deep GP comprehensive comparison (13-dimension quantitative evaluation) |
+
+---
+
+# §6. Constructive Verification Table
+
+| Mathematical Foundation | Verification Method | Count |
+|:---|:---|:---|
+| H(8,4)/Cl(8)/E8 structure | `native_decide` formal proof | 49 items |
+| Dirac operator $D_+^2 = 9920$ | Constructive computation + Parthasarathy matching | 12 items |
+| Commutator grade structure | $[D, e_i]$ is pure grade-2 | 8 directions |
+| Metric tensor formula | $g_{ii} = 4(9920 - D_i^2)$ agreement in all directions | 8 directions |
+| Standard Model parameters | Matching with PDG 2024 observational data | 3 items (0.02–0.07%) |
+| TQC/MTC | 644 tests (100% pass) | 7 axioms |
+| GoldenGate $G^5 = I$ | Verified with symmetric and asymmetric inputs | 2 tests |
+| $O(n)$ GP inference | Exact via Woodbury + Bareiss integer ratios | `_20/_00` implementation |
+| Active Learning | AL 1,173× vs. Random | `_20/_04` empirical comparison |
+| Deep GP consistency | `deepFeatureMap` ↔ `deepGP_L` numerical exact match | depth=0,1,2 (3 tests) |
+| Lazy regime escape demonstration | Predictions change at depth 0/1/2 (Rich Regime) | `_22/_00` §6.3 |
+| selfK invariance | $k_{\text{deep}}(x,x)$ is identical for all inputs | depth=0,1 (2 tests) |
+| Path integral = matrix power identity | `deepGP3Layer` = $\mathbf{k}_x^T K \mathbf{k}_y$ numerical match | `_21/_02` §3.7 |
+| BQP-completeness theorem | 3-stage proof (path sum + universality + BQP reduction) | `_21/_03` §3.3 |
+| Foundation Gram transfer | $G_{\text{pre}} + G_{\text{task}}$ additive knowledge integration | `_22/_01` §5 |
+
+
+# §7. Open Problems and New Research Directions
+
+## Open Problems in Physics
+
+| Open Problem | Current Status | Future Tasks |
+|:---|:---|:---|
+| **CKM/PMNS matrices** | Structural relationships of inter-generation mixing angles not yet derived | Concrete numerical computation from Route D |
+| **Strong CP problem** | Triality protection $\theta = 0$ suggested | Rigorous proof of Triality preservation in `_06_E8Branching/_03_RouteC` |
+| **Formal connection to NTK** | Suggestion only (`_21/_00` §6.3) | Formal equivalence proof with discrete Deep GP in the infinite-width limit |
+
+## Machine Learning Research Directions (Resolved and Open)
+
+| Theme | Status | Content | Reference |
+|:---|:---|:---|:---|
+| **Automatic kernel design** | ✅ Production-ready | $O(n)$ search via Bott periodicity + Multi-E8 additive composition | `_20/_03` §6 |
+| **Hierarchical GP** | ✅ **Resolved** | Breakthrough from $O(Ln^3) \to O(Ln)$, Quantum Deep GP implemented | `_21/_01` §3 |
+| **GP transfer learning** | ✅ **Resolved** | Transfer via Foundation Gram Matrix without catastrophic forgetting | `_22/_01` §5 |
+| **Attention → O(n)** | ✅ Resolved | Hamming-Attention ($O(Td)$ exact) subsumes Transformer | `_22/_01` §4.2 |
+| **Convergence with BitNet** | ✅ Resolved | featureMap = $\{-1,+1\}^8$ ≅ BitNet b1.58 weight space | `_22/_01` §6 |
+| **FTQC↔GP practical use** | ✅ Resolved | Duality established, implemented as Exact Deep BO | `_22/_00` §5 |
+| **Elimination of VI** | ✅ **Resolved** | H84 discrete path integral yields exact Deep GP inference without VI | `_21/_02` §1 |
+| **BQP machine learning** | ✅ Established as theorem | Deep GP inference ∈ BQP-complete (via GoldenGate) | `_21/_03` §3.3 |
+| **CKM/PMNS matrices** | 🔲 Open | Structural relationships of inter-generation mixing angles not yet derived | `_06/_04_RouteD_Matter` |
+| **Strong CP problem** | 🔲 Open | Rigorous proof of Triality protection $\theta = 0$ needed | `_06/_03_RouteC_Force` |
+
+
+---
+
+# §8. References
+
+### Noncommutative Geometry and Spectral Action
+- Connes, A. (1994). *Noncommutative Geometry*, Academic Press.
+- Connes, A. (1996). "Gravity coupled with matter and the foundation of non-commutative geometry",
+  *Commun. Math. Phys.* 182, 155–176.
+- Chamseddine, A.H. & Connes, A. (1996). "Universal Formula for Noncommutative Geometry Actions".
+- Chamseddine, A.H. & Connes, A. (1997).
+  "The Spectral Action Principle", *Commun. Math. Phys.* 186, 731–750.
+- van Suijlekom, W.D. (2015).
+  *Noncommutative Geometry and Particle Physics*, Springer.
+- Parthasarathy, R. (1972). Dirac operator formula: $D^2 = -\Omega_\mathfrak{g} + \Omega_\mathfrak{k} + c$.
+- Kostant, B. (1999). Cubic Dirac operator and refinement of Parthasarathy formula.
+
+### Quantum Information, TQC, and Bell Inequalities
+- Kochen, S. & Specker, E. (1967). "The Problem of Hidden Variables in Quantum Mechanics",
+  *J. Math. Mech.* 17, 59–87.
+- Cortez, Morales, Reyes (2025). "Minimal ring extensions of the integers exhibiting
+  Kochen-Specker contextuality", arXiv:2211.13216.
+- Freedman, M.H., Kitaev, A.Y., and Wang, Z. (2002).
+  "Simulation of Topological Field Theories by Quantum Computers",
+  *Comm. Math. Phys.* 227(3), 587–603.
+- Freedman, M.H., Kitaev, A., Larsen, M.J. & Wang, Z. (2003).
+  "Topological quantum computation", *Bull. Amer. Math. Soc.* 40, 31–38.
+- Nayak, C., Simon, S.H., Stern, A., Freedman, M. and Das Sarma, S. (2008).
+  "Non-Abelian anyons and topological quantum computation",
+  *Reviews of Modern Physics* 80(3), 1083–1159.
+- Kitaev, A. (2006). "Anyons in an exactly solved model and beyond",
+  *Annals of Physics* 321, 2–111.
+- Bravyi, S. & Kitaev, A. (2005). "Universal quantum computation with ideal Clifford gates
+  and noisy ancillas", *Phys. Rev. A* 71, 022316.
+- Dawson, C.M. & Nielsen, M.A. (2006). "The Solovay-Kitaev algorithm",
+  *Quantum Information & Computation* 6, 81–95.
+- Jones, V.F.R. (1985). "A polynomial invariant for knots via von Neumann algebras",
+  *Bull. Amer. Math. Soc.* 12, 103–111.
+- Feynman, R.P. (1982). "Simulating Physics with Computers",
+  *Int. J. Theoretical Physics* 21(6/7), 467–488.
+- Shor, P.W. (1994). "Algorithms for quantum computation", FOCS 1994.
+
+### Cosmology and de Sitter Spacetime
+- Weinberg, S. (1989). "The Cosmological Constant Problem",
+  *Rev. Mod. Phys.* 61, 1–23.
+- Perlmutter, S. et al. (1999). "Measurements of Ω and Λ from 42 High-Redshift Supernovae",
+  *Astrophys. J.* 517, 565–586.
+- Riess, A.G. et al. (1998). "Observational Evidence from Supernovae for an Accelerating Universe",
+  *Astron. J.* 116, 1009–1038.
+- Gibbons, G.W. & Hawking, S.W. (1977). "Cosmological event horizons, thermodynamics,
+  and particle creation", *Phys. Rev. D* 15, 2738–2751.
+
+### Standard Model and Experimental Data
+- Particle Data Group (2024). *Review of Particle Physics*, PTEP 2022(8), 083C01.
+  Values: $m_t = 172.69$ GeV, $m_H = 125.25$ GeV, $\alpha_s(M_Z) = 0.1179$.
+
+### Machine Learning, Gaussian Processes, and Deep GP
+- Neal, R.M. (1996). *Bayesian Learning for Neural Networks*,
+  Lecture Notes in Statistics, Springer.
+- Rasmussen, C.E. and Williams, C.K.I. (2006).
+  *Gaussian Processes for Machine Learning*, MIT Press.
+- Jacot, A., Gabriel, F. and Hongler, C. (2018).
+  "Neural Tangent Kernel: Convergence and Generalization in Neural Networks", NeurIPS 2018.
+- Damianou, A. and Lawrence, N.D. (2013).
+  "Deep Gaussian Processes", AISTATS 2013.
+- Wilson, A.G., Hu, Z., Salakhutdinov, R. and Xing, E.P. (2016).
+  "Deep Kernel Learning", AISTATS 2016.
+- Barron, A.R. (1993). "Universal Approximation Bounds for Superpositions of a Sigmoidal
+  Function", *IEEE Trans. Information Theory* 39(3), 930–945.
+- Guo, C. et al. (2017). "On Calibration of Modern Neural Networks", ICML 2017.
+- Lakshminarayanan, B. et al. (2017). "Simple and Scalable Predictive Uncertainty Estimation
+  using Deep Ensembles", NeurIPS 2017.
+- Gal, Y. & Ghahramani, Z. (2016). "Dropout as a Bayesian Approximation", ICML 2016.
+- Ma, S. et al. (2024). "The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits",
+  arXiv:2402.17764.
+
+-/
+
+end CL8E8TQC.Introduction.Overview
+</script>
+
+  <div id="app">
+    <div id="topbar">
+      <div class="logo">lean<span> notebook</span></div>
+      <div class="sep">·</div>
+      <div class="doc-title" id="doc-title">Loading…</div>
+      <div id="view-toggle">
+        <input type="radio" name="view" id="vlean" value="lean">
+        <label for="vlean">lean</label>
+        <input type="radio" name="view" id="vhtml" value="html" checked>
+        <label for="vhtml">HTML</label>
+      </div>
+    </div>
+    <nav id="sidebar">
+      <div id="toc-label">Contents</div>
+      <div id="toc"></div>
+    </nav>
+    <main id="notebook"></main>
+    <div id="lean-raw">
+      <pre id="lean-raw-pre"></pre>
+    </div>
+  </div>
+
+  <script>
+// ================================================================
+// renderer.js — Shared rendering logic for LeanNotebook
+// Used by both the VSCode WebView (main.js) and HTML export (template.html).
+// DO NOT add VSCode-specific or VanJS-specific code here.
+// ================================================================
+
+// ----------------------------------------------------------------
+// Lean 4 Syntax Highlighter
+// ----------------------------------------------------------------
+const LR_KW = new Set([
+    'def', 'abbrev', 'theorem', 'lemma', 'example', 'noncomputable',
+    'private', 'protected', 'instance', 'class', 'structure', 'inductive', 'where', 'with',
+    'extends', 'deriving', 'namespace', 'end', 'section', 'open', 'import', 'export',
+    'universe', 'variable', 'attribute', 'notation', 'macro', 'syntax', 'elab',
+    'by', 'do', 'return', 'let', 'have', 'show', 'from', 'fun', 'match', 'if', 'then', 'else',
+    'for', 'while', 'mut', 'pure', 'calc', 'suffices', 'obtain', 'refine', 'exact', 'apply',
+    'intro', 'intros', 'cases', 'induction', 'constructor', 'use', 'rfl', 'simp', 'ring',
+    'omega', 'linarith', 'norm_num', 'decide', 'native_decide', 'trivial', 'assumption',
+    'contradiction', 'aesop', 'tauto', 'field_simp', 'push_neg', 'pull_neg',
+    'partial', 'unsafe', 'opaque', 'axiom'
+]);
+const LR_TY = new Set([
+    'Nat', 'Int', 'Bool', 'String', 'Float', 'Char', 'UInt8', 'UInt16',
+    'UInt32', 'UInt64', 'Int8', 'Int16', 'Int32', 'Int64', 'List', 'Array', 'Vector',
+    'Option', 'Result', 'IO', 'Type', 'Prop', 'Sort', 'Unit', 'Empty', 'True', 'False',
+    'Eq', 'And', 'Or', 'Not', 'Iff', 'Exists', 'Sigma', 'Subtype', 'Fin', 'BitVec'
+]);
+const LR_TA = new Set([
+    'native_decide', 'decide', 'rfl', 'simp', 'ring', 'omega',
+    'linarith', 'norm_num', 'exact', 'apply', 'intro', 'intros', 'cases', 'rcases',
+    'induction', 'constructor', 'use', 'refine', 'suffices', 'obtain', 'contradiction',
+    'trivial', 'assumption', 'aesop', 'tauto', 'field_simp', 'push_neg', 'pull_neg',
+    'positivity', 'norm_cast', 'push_cast', 'ext', 'funext', 'congr', 'conv', 'rw',
+    'rewrite', 'gcongr', 'abel'
+]);
+
+function lrEsc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function lrHlLine(raw) {
+    let cmt = -1, inStr = false;
+    for (let i = 0; i < raw.length - 1; i++) {
+        if (raw[i] === '"' && (i === 0 || raw[i - 1] !== '\\')) inStr = !inStr;
+        if (!inStr && raw[i] === '-' && raw[i + 1] === '-') { cmt = i; break; }
+    }
+    const codePart = cmt >= 0 ? raw.slice(0, cmt) : raw;
+    const tailPart = cmt >= 0 ? raw.slice(cmt) : '';
+    let out = '', i = 0;
+    while (i < codePart.length) {
+        const ch = codePart[i];
+        if (ch === '"') {
+            let j = i + 1;
+            while (j < codePart.length && (codePart[j] !== '"' || codePart[j - 1] === '\\')) j++;
+            out += `<span class="hl-string">${lrEsc(codePart.slice(i, j + 1))}</span>`;
+            i = j + 1; continue;
+        }
+        if (ch === '0' && i + 1 < codePart.length && (codePart[i + 1] === 'b' || codePart[i + 1] === 'x')) {
+            let j = i + 2;
+            while (j < codePart.length && /[0-9a-fA-F_]/.test(codePart[j])) j++;
+            let sf = '';
+            if (j < codePart.length && codePart[j] === '#') {
+                let k = j + 1;
+                while (k < codePart.length && /\d/.test(codePart[k])) k++;
+                sf = lrEsc(codePart.slice(j, k)); j = k;
+            }
+            out += `<span class="hl-number">${lrEsc(codePart.slice(i, j))}${sf}</span>`;
+            i = j; continue;
+        }
+        if (/\d/.test(ch) && (i === 0 || !/\w/.test(codePart[i - 1]))) {
+            let j = i;
+            while (j < codePart.length && /[\d_]/.test(codePart[j])) j++;
+            out += `<span class="hl-number">${lrEsc(codePart.slice(i, j))}</span>`;
+            i = j; continue;
+        }
+        if (/[a-zA-Z_]/.test(ch) || ch.charCodeAt(0) > 127) {
+            let j = i + 1;
+            while (j < codePart.length && (
+                /[\w']/.test(codePart[j]) ||
+                /[₀-₉]/.test(codePart[j]) ||
+                codePart.charCodeAt(j) > 127
+            )) j++;
+            const w = codePart.slice(i, j), e = lrEsc(w);
+            if (LR_KW.has(w)) out += `<span class="hl-keyword">${e}</span>`;
+            else if (LR_TA.has(w)) out += `<span class="hl-tactic">${e}</span>`;
+            else if (LR_TY.has(w)) out += `<span class="hl-type">${e}</span>`;
+            else if (/^[A-Z]/.test(w)) out += `<span class="hl-type">${e}</span>`;
+            else out += e;
+            i = j; continue;
+        }
+        let hit = false;
+        for (const op of ['^^^', '&&&', '|||', '<<<', '>>>', '<|>', ':=', '=>', '->', '<-', '::', '..']) {
+            if (codePart.startsWith(op, i)) {
+                out += `<span class="hl-op">${lrEsc(op)}</span>`;
+                i += op.length; hit = true; break;
+            }
+        }
+        if (hit) continue;
+        out += lrEsc(ch); i++;
+    }
+    if (tailPart) out += `<span class="hl-comment">${lrEsc(tailPart)}</span>`;
+    return out;
+}
+
+function hlLean(codeText) {
+    return codeText.split('\n').map(lrHlLine).join('\n');
+}
+
+// ----------------------------------------------------------------
+// Markdown + Math renderer
+// Uses string-based placeholders so marked cannot strip them.
+// This is the canonical implementation used by BOTH VSCode WebView
+// and the HTML export. Do not duplicate this logic elsewhere.
+// ----------------------------------------------------------------
+function mdToHtml(content) {
+    const mathBlocks = [];
+    const PH_D = (i) => `LNMATH_D_${i}_END`;
+    const PH_I = (i) => `LNMATH_I_${i}_END`;
+
+    let s = content;
+    // Strip leading --- line that marked would misinterpret as YAML front matter.
+    // In Lean /-! blocks, --- is used as a horizontal rule / separator, not YAML.
+    s = s.replace(/^\s*---\s*\n/, '\n');
+    // Display math first (multi-line)
+    s = s.replace(/\$\$([\s\S]*?)\$\$/g, (m, c) => {
+        const i = mathBlocks.length;
+        mathBlocks.push({ t: 'd', c });
+        return PH_D(i);
+    });
+    // Inline math (single line, not crossing $)
+    s = s.replace(/\$([^$\n]+?)\$/g, (m, c) => {
+        const i = mathBlocks.length;
+        mathBlocks.push({ t: 'i', c });
+        return PH_I(i);
+    });
+
+    let html = (typeof marked !== 'undefined')
+        ? marked.parse(s)
+        : s.replace(/\n/g, '<br>');
+
+    // Restore math with original delimiters.
+    // IMPORTANT: use $$ and $ (not \[..\] / \(..\)) because the JS escape sequences
+    // \[ and \( collapse to [ and ( in string literals, breaking MathJax recognition.
+    html = html.replace(/LNMATH_D_(\d+)_END/g, (_, i) => `$$${mathBlocks[+i].c}$$`);
+    html = html.replace(/LNMATH_I_(\d+)_END/g, (_, i) => `$${mathBlocks[+i].c}$`);
+    return html;
+}
+
+// ----------------------------------------------------------------
+// Mermaid renderer — single shared implementation
+// Call renderMermaid(source, containerEl) from both main.js and template.html.
+// ----------------------------------------------------------------
+// (No CDN URL constants — all libraries loaded from local _libs/)
+// ----------------------------------------------------------------
+
+const MERMAID_THEME = {
+    startOnLoad: false,
+    theme: 'neutral',
+    flowchart: { useMaxWidth: false },
+    themeVariables: {
+        background: '#ffffff',
+        mainBkg: '#dbeafe',
+        nodeBorder: '#93c5fd',
+        lineColor: '#2563eb',
+        textColor: '#1a2233',
+        fontSize: '13px',
+        primaryColor: '#dbeafe',
+        primaryTextColor: '#1d4ed8',
+        primaryBorderColor: '#93c5fd',
+        edgeLabelBackground: '#f4f7fb',
+    }
+};
+
+let _mermaidInitialized = false;
+function ensureMermaidInit() {
+    if (_mermaidInitialized) return;
+    if (typeof mermaid === 'undefined') return;
+    mermaid.initialize(MERMAID_THEME);
+    _mermaidInitialized = true;
+}
+
+// Render a mermaid diagram into containerEl.
+// Returns a Promise that resolves when done.
+async function renderMermaid(source, containerEl) {
+    if (typeof mermaid === 'undefined') {
+        containerEl.textContent = 'Mermaid not loaded';
+        return;
+    }
+    ensureMermaidInit();
+    const id = 'mx-' + Math.random().toString(36).slice(2);
+    try {
+        const { svg } = await mermaid.render(id, source);
+        containerEl.innerHTML = svg;
+        // Remove Mermaid's inline height/max-height constraints.
+        // Do NOT set width:100% — wide diagrams (e.g. dependency graphs)
+        // would be forced into the container width, compressing height
+        // proportionally via viewBox aspect-ratio preservation.
+        // Instead, let the SVG keep its natural dimensions and rely on
+        // CSS overflow-x:auto on .block-mermaid for horizontal scrolling.
+        const svgEl = containerEl.querySelector('svg');
+        if (svgEl) {
+            svgEl.removeAttribute('height');
+            svgEl.style.removeProperty('max-height');
+        }
+    } catch (e) {
+        containerEl.textContent = `Mermaid Error: ${e.message}`;
+    }
+}
+
+// ----------------------------------------------------------------
+// Graphviz (DOT) renderer — via @viz-js/viz (Graphviz WASM)
+// Single shared implementation for both WebView and HTML export.
+// ----------------------------------------------------------------
+let _vizInstance = null;
+let _vizInstancePromise = null;
+
+function getVizInstance() {
+    if (_vizInstance) return Promise.resolve(_vizInstance);
+    if (_vizInstancePromise) return _vizInstancePromise;
+    _vizInstancePromise = new Promise((resolve, reject) => {
+        // Viz.js may be loaded async; poll until it's available (up to 10s).
+        let elapsed = 0;
+        const interval = 100;
+        const maxWait = 10000;
+        function check() {
+            if (typeof Viz !== 'undefined') {
+                Viz.instance().then(viz => {
+                    _vizInstance = viz;
+                    resolve(viz);
+                }).catch(reject);
+            } else if (elapsed >= maxWait) {
+                reject(new Error('Viz.js not loaded after ' + maxWait + 'ms'));
+            } else {
+                elapsed += interval;
+                setTimeout(check, interval);
+            }
+        }
+        check();
+    });
+    return _vizInstancePromise;
+}
+
+// Render a Graphviz DOT diagram into containerEl.
+// Returns a Promise that resolves when done.
+async function renderGraphviz(source, containerEl) {
+    try {
+        const viz = await getVizInstance();
+        const svgEl = viz.renderSVGElement(source);
+        containerEl.innerHTML = '';
+        containerEl.appendChild(svgEl);
+    } catch (e) {
+        containerEl.textContent = `Graphviz Error: ${e.message || e}`;
+    }
+}
+
+// ----------------------------------------------------------------
+// MathJax: typeset a container and wrap display math.
+// Call typesetMath(container) from BOTH main.js and template.html.
+// This is the single shared implementation — do not duplicate.
+// ----------------------------------------------------------------
+function wrapDisplayMath(container) {
+    container.querySelectorAll('mjx-container[display="true"]').forEach(el => {
+        if (!el.parentElement.classList.contains('mjx-display-wrap')) {
+            const wrap = document.createElement('div');
+            wrap.className = 'mjx-display-wrap';
+            el.parentNode.insertBefore(wrap, el);
+            wrap.appendChild(el);
+        }
+    });
+}
+
+// Typeset MathJax in container, then wrap display math.
+// Returns a Promise. Safe to call even if MathJax is not loaded.
+function typesetMath(container) {
+    if (window.MathJax && MathJax.typesetPromise) {
+        return MathJax.typesetPromise([container])
+            .then(() => wrapDisplayMath(container))
+            .catch(console.warn);
+    }
+    return Promise.resolve();
+}
+
+// The canonical MathJax configuration object.
+// Used verbatim in both NotebookPanel.ts (Extension) and template.html (HTML export).
+const MATHJAX_CONFIG = {
+    tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true
+    },
+    options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+        menuOptions: {
+            settings: {
+                enrich: false,
+                collapsible: false,
+                speech: false,
+                braille: false,
+                assistiveMml: false
+            }
+        }
+    },
+    startup: { typeset: false }
+};
+
+// ----------------------------------------------------------------
+// Lean comment parser (port of leanCommentParser.ts)
+// ----------------------------------------------------------------
+function trimEmptyLines(code) {
+    const lines = code.split('\n');
+    let s = 0;
+    while (s < lines.length && lines[s].trim() === '') s++;
+    let e = lines.length - 1;
+    while (e >= 0 && lines[e].trim() === '') e--;
+    if (s > e) return '';
+    return lines.slice(s, e + 1).join('\n');
+}
+
+function dedent(str) {
+    const lines = str.split('\n');
+    let minIndent = Infinity;
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim().length === 0) continue;
+        const m = line.match(/^\s*/);
+        const indent = m ? m[0].length : 0;
+        if (indent < minIndent) minIndent = indent;
+    }
+    if (minIndent === Infinity) minIndent = 0;
+    return lines.map((line, idx) => {
+        if (idx === 0) return line.trim();
+        if (line.trim().length === 0) return '';
+        return line.length >= minIndent ? line.slice(minIndent) : line.trim();
+    }).join('\n').trim();
+}
+
+function findDocCommentEnd(text, startPos) {
+    let pos = startPos;
+    let inlineTickCount = null;
+    let inFence = false;
+    while (pos < text.length) {
+        const ch = text[pos];
+        if (ch === '`') {
+            let run = 1;
+            while (pos + run < text.length && text[pos + run] === '`') run++;
+            if (inlineTickCount === null) {
+                if (run >= 3) {
+                    let i = pos - 1;
+                    while (i >= 0 && text[i] !== '\n') i--;
+                    const prefix = text.slice(i + 1, pos);
+                    if (/^\s*$/.test(prefix)) { inFence = !inFence; pos += run; continue; }
+                }
+                if (!inFence) { inlineTickCount = run; pos += run; continue; }
+            } else {
+                if (run === inlineTickCount) { inlineTickCount = null; pos += run; continue; }
+            }
+            pos += run; continue;
+        }
+        const next = (pos + 1 < text.length) ? text[pos + 1] : '';
+        if (!inFence && inlineTickCount === null && ch === '-' && next === '/') return pos;
+        pos += 1;
+    }
+    return -1;
+}
+
+function splitLeanDocComments(text) {
+    const blocks = [];
+    let pos = 0, last = 0;
+
+    function pushCode(code) {
+        const lines = code.split('\n');
+        let s = 0;
+        while (s < lines.length && lines[s].trim() === '') s++;
+        const rawStartLine = text.slice(0, last).split('\n').length - 1;
+        const startLine = rawStartLine + s;
+        const trimmedCode = trimEmptyLines(code);
+        const trimmedLineCount = trimmedCode.split('\n').length;
+        const endLine = startLine + (trimmedLineCount > 0 ? trimmedLineCount - 1 : 0);
+        blocks.push({ type: 'code', source: trimmedCode, range: { startLine, endLine } });
+    }
+
+    function pushComment(kind, content, startOffset) {
+        const dedentedContent = dedent(content);
+        const startLine = text.slice(0, startOffset).split('\n').length - 1;
+        const endLine = startLine + (content.split('\n').length - 1);
+        blocks.push({ type: kind, content: dedentedContent, range: { startLine, endLine } });
+    }
+
+    while (pos < text.length) {
+        const nextModule = text.indexOf('/-!', pos);
+        const nextDoc = text.indexOf('/--', pos);
+        let start = -1, kind = null;
+        if (nextModule !== -1 && (nextDoc === -1 || nextModule < nextDoc)) { start = nextModule; kind = 'module-doc'; }
+        else if (nextDoc !== -1) { start = nextDoc; kind = 'doc-comment'; }
+        if (start === -1) break;
+        if (start > last) pushCode(text.slice(last, start));
+        const contentStart = start + 3;
+        const end = findDocCommentEnd(text, contentStart);
+        if (end === -1) { pushCode(text.slice(start)); last = text.length; break; }
+        pushComment(kind, text.slice(contentStart, end), start);
+        pos = end + 2; last = pos;
+    }
+    if (last < text.length) pushCode(text.slice(last));
+
+    return blocks.filter(b => {
+        if (b.type === 'code') return b.source.trim().length > 0;
+        if (b.type === 'mermaid') return b.source.trim().length > 0;
+        if (b.type === 'graphviz') return b.source.trim().length > 0;
+        return b.content.trim().length > 0;
+    });
+}
+
+function splitDiagramBlocks(content) {
+    const result = [];
+    // Note: backticks written as \x60 to avoid breaking HTML script-tag embedding
+    const TICK3 = '\x60\x60\x60';
+    const re = new RegExp('^' + TICK3 + '(mermaid|graphviz|dot)\\s*\\n([\\s\\S]*?)^' + TICK3 + '\\s*$', 'gm');
+    let lastIndex = 0, match;
+    while ((match = re.exec(content)) !== null) {
+        const textContent = content.substring(lastIndex, match.index);
+        if (textContent.trim().length > 0) result.push({ type: 'text', content: textContent.trim() });
+        const lang = match[1]; // 'mermaid', 'graphviz', or 'dot'
+        const src = match[2];
+        if (src.trim().length > 0) {
+            const blockType = lang === 'mermaid' ? 'mermaid' : 'graphviz';
+            result.push({ type: blockType, source: trimEmptyLines(src) });
+        }
+        lastIndex = re.lastIndex;
+    }
+    if (lastIndex < content.length) {
+        const remaining = content.substring(lastIndex);
+        if (remaining.trim().length > 0) result.push({ type: 'text', content: remaining.trim() });
+    }
+    if (result.length === 0 && content.trim().length > 0)
+        result.push({ type: 'text', content: content.trim() });
+    return result;
+}
+
+function expandCommentBlock(block) {
+    if (block.type !== 'module-doc' && block.type !== 'doc-comment') return [block];
+    const subBlocks = splitDiagramBlocks(block.content);
+    if (subBlocks.length === 1 && subBlocks[0].type === 'text') return [block];
+    return subBlocks.map(sub =>
+        sub.type === 'text'
+            ? { type: block.type, content: sub.content, range: block.range }
+            : { type: sub.type, source: sub.source, range: block.range }
+    );
+}
+
+function parseLean(text) {
+    return splitLeanDocComments(text).flatMap(b => expandCommentBlock(b));
+}
+
+  </script>
+  <script>
+      /* ================================================================
+         Rendering and Boot — template.html specific UI logic
+         All shared logic (hlLean, mdToHtml, parseLean etc.) lives in
+         renderer.js which is inlined above by htmlExporter.ts at export time.
+         ================================================================ */
+      async function render(blocks) {
+        const nb = document.getElementById('notebook');
+        nb.innerHTML = '';
+
+        for (const b of blocks) {
+          if (b.type === 'module-doc' || b.type === 'doc-comment') {
+            const cls = b.type === 'module-doc' ? 'block-module-doc' : 'block-doc-comment';
+            const el = document.createElement('div');
+            el.className = cls;
+            el.innerHTML = mdToHtml(b.content);
+            // Apply Lean syntax highlighting to ```lean code fences inside markdown
+            el.querySelectorAll('pre code').forEach(code => {
+              const isLean = code.classList.contains('language-lean') ||
+                code.classList.contains('language-lean4');
+              if (isLean) {
+                code.innerHTML = hlLean(code.textContent || '');
+              }
+            });
+            nb.appendChild(el);
+          } else if (b.type === 'code') {
+            const el = document.createElement('div');
+            el.className = 'block-code';
+            el.innerHTML = `<div class="block-code-header">lean4</div><pre class="lean-source">${hlLean(b.source)}</pre>`;
+            nb.appendChild(el);
+          } else if (b.type === 'mermaid') {
+            const wrap = document.createElement('div');
+            wrap.className = 'block-mermaid';
+            nb.appendChild(wrap);
+            await renderMermaid(b.source, wrap);
+          } else if (b.type === 'graphviz') {
+            const wrap = document.createElement('div');
+            wrap.className = 'block-graphviz';
+            nb.appendChild(wrap);
+            await renderGraphviz(b.source, wrap);
+          }
+        }
+
+        // TOC
+        let tocHtml = '', hi = 0;
+        nb.querySelectorAll('h1,h2,h3').forEach(h => {
+          const id = 'h' + hi++; h.id = id;
+          tocHtml += `<a href="#${id}" class="${h.tagName.toLowerCase()}">${h.textContent}</a>\n`;
+        });
+        document.getElementById('toc').innerHTML = tocHtml;
+
+        const h1 = nb.querySelector('h1');
+        if (h1) {
+          document.getElementById('doc-title').textContent = h1.textContent;
+          document.title = h1.textContent + ' — Lean Notebook';
+        }
+
+        // Use shared typesetMath() from renderer.js — MathJax
+        typesetMath(nb);
+      }
+
+    /* ================================================================
+       Boot
+       ================================================================ */
+    function boot() {
+      if (typeof marked === 'undefined') { setTimeout(boot, 100); return; }
+      marked.use({ gfm: true, breaks: true });
+      const el = document.getElementById('lean-source');
+      if (!el) return;
+
+      const rawPre = document.getElementById('lean-raw-pre');
+      rawPre.innerHTML = hlLean(el.textContent);
+
+      const blocks = parseLean(el.textContent);
+      render(blocks);
+
+      const nb = document.getElementById('notebook');
+      const leanRaw = document.getElementById('lean-raw');
+      const appEl = document.getElementById('app');
+      document.querySelectorAll('input[name="view"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          if (radio.value === 'lean') {
+            nb.style.display = 'none';
+            leanRaw.style.display = 'block';
+            appEl.classList.add('lean-mode');
+          } else {
+            nb.style.display = '';
+            leanRaw.style.display = 'none';
+            appEl.classList.remove('lean-mode');
+          }
+        });
+      });
+    }
+    window.addEventListener('load', boot);
+  </script>
+</body>
+
+</html>

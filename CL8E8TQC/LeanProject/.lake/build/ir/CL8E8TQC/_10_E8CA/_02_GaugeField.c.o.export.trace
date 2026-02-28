@@ -1,0 +1,16 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs": "472e9ba267dd4a39.o",
+ "log":
+ [{"message":
+   ".> gcc -c -o /home/ken/Documents/8bit-physics/____working/_en/.lake/build/ir/CL8E8TQC/_10_E8CA/_02_GaugeField.c.o.export /home/ken/Documents/8bit-physics/____working/_en/.lake/build/ir/CL8E8TQC/_10_E8CA/_02_GaugeField.c -I /nix/store/4gr3n4nrp0xxgykyyzdxi3xjj2ikn5x1-lean4-4.25.0/include -fstack-clash-protection -fwrapv -fPIC -fvisibility=hidden -Wno-unused-command-line-argument -O3 -DNDEBUG -DLEAN_EXPORTING",
+   "level": "trace"}],
+ "inputs":
+ [["CL8E8TQC._10_E8CA._02_GaugeField:c",
+   [["/home/ken/Documents/8bit-physics/____working/_en/.lake/build/ir/CL8E8TQC/_10_E8CA/_02_GaugeField.c",
+     "3a06d6a01111c104"],
+    ["Lean 4.25.0, commit v4.25.0", "9c3a3ade3a41d5d0"]]],
+  ["Lean 4.25.0, commit v4.25.0", "9c3a3ade3a41d5d0"],
+  ["traceArgs: #[-O3, -DNDEBUG, -DLEAN_EXPORTING]", "c1efb66122fb2b9a"],
+  ["", "21c42906adea99f5"]],
+ "depHash": "744c3dc25fceb798"}

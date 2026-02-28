@@ -1,14 +1,14 @@
 {
-  "title": "H84-E8-TQC Theory",
-  "description": "8-Bit H(8,4) Code and E8 Lattice Theory: BQP-Complete Topological Quantum Computing via Bitwise Arithmetic, Geometric Unification of Standard Model Constants, and Emergent Λ>0 de Sitter Spacetime",
+  "title": "It from 8-Bit: Standard Model Parameters, Gauge Unification, and Λ>0 de Sitter Cosmology from E8 Noncommutative Geometry, with Mathematical Foundations for FTQC and Quantum Deep Gaussian Processes",
+  "description": "This theory is founded on the trinitarian isomorphism \"Information = Algebra = Geometry\": GF(2)^8 ≅ Cl(8) ≅ Γ_E8, realizing \"It from 8-Bit\" as a chain of mathematical theorems. Starting from GF(2)^8 (the 8-bit integer structure), it constructs a unified theory that derives spacetime, the four forces, three generations of matter, gravity (the Einstein–Hilbert action), and the cosmological constant (Λ > 0 de Sitter spacetime) without adjustable parameters, via Clifford algebra Cl(8), the E8 lattice, and Connes' noncommutative geometry (NCG).\n\nAll computations in the theory are carried out using only discrete integer arithmetic (the Forbidden Float principle), with no matrix representations whatsoever (the Matrix-Free principle). This discreteness ensures that theoretical values are uniquely determined as exact rational numbers, with no adjustable parameters and no approximation errors — any residual discrepancy with observational data originates solely from the measurement precision on the observational side. Matching results with Standard Model parameters are: mass hierarchy a_2 = 9584/245 (within observational error, 0.00008%), vacuum correction coefficient Δb_vac = 62/45 simultaneously determining the top/Higgs mass ratio (0.07%) and gauge coupling unification without supersymmetry (0.02%, three forces converging to a single point). Furthermore, the cosmological constant Ω_Λ = 27/4π^2 ≈ 0.684 is derived (the integer 27 in the numerator is the sole contribution from E8 theory, Forbidden Float compliant; the denominator 4π^2 arises from the GR/NCG observational interpretation framework — see `_09_dSCFT` §3.9 for details), agreeing with the Planck 2018 observed value within 1σ. All derivations are mechanically verified via Lean 4's `native_decide`.\n\nFrom the same Cl(8) algebraic structure, quantum nonlocality is formally proved (UNSAT proof of the KS theorem, CHSH violation reaching the Tsirelson bound). On this quantum computation foundation, the Cl(8) geometric product algebraically unifies fault-tolerant quantum computation (FTQC), Gaussian processes (GP), and neural networks (NN), establishing the mathematical foundations for next-generation quantum machine learning. A formal proof that GoldenGate Quantum Deep GP is BQP-complete yields O(n) exact GP and the isomorphism Quantum Deep GP ≡ TQC (layers = circuit depth).",
   "creators": [
     {
       "name": "Okabe, Ken",
       "affiliation": "Independent Researcher"
     }
   ],
-  "publication_date": "2025-12-31",
-  "version": "v0.1.0",
+  "access_right": "open",
+  "license": "cc-by-4.0",
   "upload_type": "publication",
   "publication_type": "workingpaper"
 }
